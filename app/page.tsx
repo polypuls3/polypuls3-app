@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowRight, Shield, Zap, Users, BarChart3, Lock, Globe } from "lucide-react"
 import Link from "next/link"
+import ConnectButton from "@/components/common/connect-btn"
 
 export default function HomePage() {
   return (
@@ -266,9 +267,9 @@ export default function HomePage() {
               <p className="max-w-2xl text-lg text-muted-foreground">
                 Join thousands of communities using PolyPulse for transparent, decentralized decision-making.
               </p>
-              <Button size="lg" className="gap-2">
-                Connect Wallet <ArrowRight className="h-4 w-4" />
-              </Button>
+              <div className="flex justify-center">
+                <ConnectButton />
+              </div>
             </CardContent>
           </Card>
         </ScrollReveal>

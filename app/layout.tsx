@@ -6,6 +6,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Header } from "@/components/header"
 import { Suspense } from "react"
+import WalletProvider from "@/components/providers/wallet"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,12 +28,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
-          <Suspense fallback={<div>Loading...</div>}>
-            <Header />
-            <main>{children}</main>
-          </Suspense>
-        </ThemeProvider>
+        <WalletProvider>
+          <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
+            <Suspense fallback={<div>Loading...</div>}>
+              <Header />
+              <main>{children}</main>
+            </Suspense>
+            <Toaster />
+          </ThemeProvider>
+        </WalletProvider>
         <Analytics />
       </body>
     </html>

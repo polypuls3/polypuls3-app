@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Vote, Menu, X } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import ConnectButton from "@/components/common/connect-btn"
 
 export function Header() {
   const pathname = usePathname()
@@ -47,7 +48,9 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button className="hidden sm:inline-flex">Connect Wallet</Button>
+          <div className="hidden sm:inline-flex">
+            <ConnectButton />
+          </div>
 
           {/* Mobile Menu Button */}
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -73,7 +76,7 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            <Button className="w-full">Connect Wallet</Button>
+            <ConnectButton />
           </nav>
         </div>
       )}

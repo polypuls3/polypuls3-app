@@ -11,7 +11,7 @@ import { useEffect, useState } from "react"
 import { getProjectsByCreator, getPollsByCreator, getSurveysByCreator, type Project, type Poll, type Survey } from "@/lib/graphql/queries"
 
 export default function CreatorPage() {
-  const { walletAddress } = useAccount()
+  const { address: walletAddress } = useAccount()
   const { useProjectCount, usePollCount, useSurveyCount } = usePolyPuls3()
 
   const { data: projectCount, isLoading: isLoadingProjectCount } = useProjectCount()
@@ -28,6 +28,7 @@ export default function CreatorPage() {
   // Fetch user-specific data from subgraph
   useEffect(() => {
     async function fetchUserData() {
+      console.log("Fetching data for wallet:", walletAddress)
       if (!walletAddress) {
         setIsLoadingProjects(false)
         setIsLoadingPolls(false)
@@ -36,12 +37,18 @@ export default function CreatorPage() {
       }
 
       try {
+        console.log("Fetching data for wallet:", walletAddress)
+
         // Fetch all user data in parallel
         const [projects, polls, surveys] = await Promise.all([
           getProjectsByCreator(walletAddress),
           getPollsByCreator(walletAddress),
           getSurveysByCreator(walletAddress),
         ])
+
+        console.log("Projects fetched:", projects)
+        console.log("Polls fetched:", polls)
+        console.log("Surveys fetched:", surveys)
 
         setUserProjects(projects)
         setUserPolls(polls)
@@ -59,6 +66,24 @@ export default function CreatorPage() {
   }, [walletAddress])
 
   const isLoading = isLoadingProjectCount || isLoadingPollCount || isLoadingSurveyCount
+
+  // Show connect wallet prompt if not connected
+  if (!walletAddress) {
+    return (
+      <div className="container py-8">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Users className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+            <p className="text-muted-foreground mb-4">
+              Please connect your wallet to view your creator dashboard
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="container py-8">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

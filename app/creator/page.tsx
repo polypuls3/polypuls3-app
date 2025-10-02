@@ -1,55 +1,64 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, BarChart3, Users, Clock, FileText, FolderKanban } from "lucide-react"
+import { Plus, BarChart3, Users, Clock, FileText, FolderKanban, Loader2 } from "lucide-react"
 import Link from "next/link"
-
-// Mock data for creator's polls
-const myPolls = [
-  {
-    id: 1,
-    title: "Community Treasury Allocation Q1 2025",
-    type: "poll",
-    status: "active",
-    votes: 1234,
-    endDate: "2025-01-15",
-  },
-  {
-    id: 2,
-    title: "Product Feedback Survey",
-    type: "survey",
-    status: "active",
-    responses: 456,
-    endDate: "2025-01-20",
-  },
-  {
-    id: 3,
-    title: "Marketing Campaign Direction",
-    type: "poll",
-    status: "draft",
-    votes: 0,
-    endDate: null,
-  },
-]
-
-const projects = [
-  {
-    id: 1,
-    name: "Q1 2025 Governance",
-    polls: 5,
-    surveys: 2,
-    totalVotes: 3421,
-  },
-  {
-    id: 2,
-    name: "Product Development",
-    polls: 3,
-    surveys: 4,
-    totalVotes: 1856,
-  },
-]
+import { usePolyPuls3 } from "@/hooks/use-polypuls3"
+import { useAccount } from "wagmi"
+import { useEffect, useState } from "react"
+import { getProjectsByCreator, getPollsByCreator, getSurveysByCreator, type Project, type Poll, type Survey } from "@/lib/graphql/queries"
 
 export default function CreatorPage() {
+  const { walletAddress } = useAccount()
+  const { useProjectCount, usePollCount, useSurveyCount } = usePolyPuls3()
+
+  const { data: projectCount, isLoading: isLoadingProjectCount } = useProjectCount()
+  const { data: pollCount, isLoading: isLoadingPollCount } = usePollCount()
+  const { data: surveyCount, isLoading: isLoadingSurveyCount } = useSurveyCount()
+
+  const [userProjects, setUserProjects] = useState<Project[]>([])
+  const [userPolls, setUserPolls] = useState<Poll[]>([])
+  const [userSurveys, setUserSurveys] = useState<Survey[]>([])
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
+  const [isLoadingPolls, setIsLoadingPolls] = useState(true)
+  const [isLoadingSurveys, setIsLoadingSurveys] = useState(true)
+
+  // Fetch user-specific data from subgraph
+  useEffect(() => {
+    async function fetchUserData() {
+      if (!walletAddress) {
+        setIsLoadingProjects(false)
+        setIsLoadingPolls(false)
+        setIsLoadingSurveys(false)
+        return
+      }
+
+      try {
+        // Fetch all user data in parallel
+        const [projects, polls, surveys] = await Promise.all([
+          getProjectsByCreator(walletAddress),
+          getPollsByCreator(walletAddress),
+          getSurveysByCreator(walletAddress),
+        ])
+
+        setUserProjects(projects)
+        setUserPolls(polls)
+        setUserSurveys(surveys)
+      } catch (error) {
+        console.error("Error fetching user data from subgraph:", error)
+      } finally {
+        setIsLoadingProjects(false)
+        setIsLoadingPolls(false)
+        setIsLoadingSurveys(false)
+      }
+    }
+
+    fetchUserData()
+  }, [walletAddress])
+
+  const isLoading = isLoadingProjectCount || isLoadingPollCount || isLoadingSurveyCount
   return (
     <div className="container py-8">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -81,8 +90,12 @@ export default function CreatorPage() {
               <BarChart3 className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">8</p>
-              <p className="text-sm text-muted-foreground">Active Polls</p>
+              {isLoadingPolls ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <p className="text-2xl font-bold">{userPolls.length}</p>
+              )}
+              <p className="text-sm text-muted-foreground">My Polls</p>
             </div>
           </CardContent>
         </Card>
@@ -92,8 +105,12 @@ export default function CreatorPage() {
               <FileText className="h-6 w-6 text-pink-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">6</p>
-              <p className="text-sm text-muted-foreground">Active Surveys</p>
+              {isLoadingSurveys ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <p className="text-2xl font-bold">{userSurveys.length}</p>
+              )}
+              <p className="text-sm text-muted-foreground">My Surveys</p>
             </div>
           </CardContent>
         </Card>
@@ -103,8 +120,15 @@ export default function CreatorPage() {
               <Users className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">5.2K</p>
-              <p className="text-sm text-muted-foreground">Total Votes</p>
+              {isLoadingPolls || isLoadingSurveys ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <p className="text-2xl font-bold">
+                  {userPolls.reduce((acc, poll) => acc + Number(poll.totalResponses || 0), 0) +
+                    userSurveys.reduce((acc, survey) => acc + Number(survey.totalResponses || 0), 0)}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">Total Responses</p>
             </div>
           </CardContent>
         </Card>
@@ -114,8 +138,12 @@ export default function CreatorPage() {
               <FolderKanban className="h-6 w-6 text-pink-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">2</p>
-              <p className="text-sm text-muted-foreground">Projects</p>
+              {isLoadingProjects ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <p className="text-2xl font-bold">{userProjects.length}</p>
+              )}
+              <p className="text-sm text-muted-foreground">My Projects</p>
             </div>
           </CardContent>
         </Card>
@@ -132,77 +160,154 @@ export default function CreatorPage() {
             </Link>
           </Button>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {projects.map((project) => (
-            <Card key={project.id} className="transition-all hover:border-purple-600/50 hover:shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderKanban className="h-5 w-5" />
-                  {project.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-4 text-sm text-muted-foreground">
-                    <span>{project.polls} polls</span>
-                    <span>{project.surveys} surveys</span>
-                    <span>{project.totalVotes.toLocaleString()} votes</span>
+        {isLoadingProjects ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : userProjects.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first project to organize your polls and surveys
+              </p>
+              <Button asChild>
+                <Link href="/creator/create-project">Create Project</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {userProjects.map((project) => (
+              <Card key={project.id} className="transition-all hover:border-purple-600/50 hover:shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <FolderKanban className="h-5 w-5" />
+                      {project.name}
+                    </CardTitle>
+                    {project.tags && (
+                      <Badge variant="outline" className="text-xs">
+                        {project.tags}
+                      </Badge>
+                    )}
                   </div>
-                  <Button size="sm" variant="ghost">
-                    View
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">{project.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(Number(project.createdAt) * 1000).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/projects/${project.projectId}`}>View</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent Polls & Surveys */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">Recent Polls & Surveys</h2>
-        <div className="grid gap-4">
-          {myPolls.map((item) => (
-            <Card key={item.id} className="transition-all hover:border-purple-600/50">
-              <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={item.type === "poll" ? "default" : "secondary"}>
-                      {item.type === "poll" ? "Poll" : "Survey"}
-                    </Badge>
-                    <Badge
-                      variant={item.status === "active" ? "default" : "outline"}
-                      className={item.status === "active" ? "bg-green-600 hover:bg-green-700" : ""}
-                    >
-                      {item.status}
+        <h2 className="text-2xl font-bold mb-4">Recent Activity</h2>
+        {isLoadingPolls || isLoadingSurveys ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : userPolls.length === 0 && userSurveys.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No polls or surveys yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first poll or survey to start gathering insights
+              </p>
+              <div className="flex gap-2">
+                <Button asChild>
+                  <Link href="/creator/create-poll">Create Poll</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/creator/create-survey">Create Survey</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {userPolls.slice(0, 3).map((poll) => (
+              <Card key={poll.id} className="transition-all hover:border-purple-600/50 hover:shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-purple-600" />
+                      {poll.question}
+                    </CardTitle>
+                    <Badge variant={poll.isActive ? "default" : "secondary"}>
+                      {poll.isActive ? "Active" : "Ended"}
                     </Badge>
                   </div>
-                  <h3 className="font-semibold text-lg mb-1">{item.title}</h3>
-                  <div className="flex gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>
-                        {"votes" in item ? item.votes : item.responses} {"votes" in item ? "votes" : "responses"}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {poll.totalResponses} responses
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {new Date(Number(poll.createdAt) * 1000).toLocaleDateString()}
                       </span>
                     </div>
-                    {item.endDate && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        <span>Ends {item.endDate}</span>
-                      </div>
-                    )}
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/polls/${poll.pollId}`}>View Results</Link>
+                    </Button>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    Analytics
-                  </Button>
-                  <Button size="sm">Edit</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+            {userSurveys.slice(0, 3).map((survey) => (
+              <Card key={survey.id} className="transition-all hover:border-pink-600/50 hover:shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-pink-600" />
+                      {survey.title}
+                    </CardTitle>
+                    <Badge variant={survey.isActive ? "default" : "secondary"}>
+                      {survey.isActive ? "Active" : "Ended"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-3">{survey.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {survey.totalResponses} responses
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {new Date(Number(survey.createdAt) * 1000).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/surveys/${survey.surveyId}`}>View Results</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

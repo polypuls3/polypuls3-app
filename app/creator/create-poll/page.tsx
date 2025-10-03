@@ -6,15 +6,37 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, X } from "lucide-react"
+import { ArrowLeft, Plus, X, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi"
+import { parseEther } from "viem"
+import { CONTRACT_CONFIG } from "@/lib/contracts/config"
+import { useRouter } from "next/navigation"
+import { getProjectsByCreator, type Project } from "@/lib/graphql/queries"
 
 export default function CreatePollPage() {
+  const router = useRouter()
+  const [question, setQuestion] = useState("")
   const [options, setOptions] = useState(["", ""])
+  const [durationInDays, setDurationInDays] = useState("7")
+  const [rewardPool, setRewardPool] = useState("0")
+  const [category, setCategory] = useState("")
+  const [projectId, setProjectId] = useState("0")
+  const [votingType, setVotingType] = useState("single")
+  const [visibility, setVisibility] = useState("public")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: hash, writeContract, isPending, error } = useWriteContract()
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  })
 
   const addOption = () => {
-    setOptions([...options, ""])
+    if (options.length < 10) {
+      setOptions([...options, ""])
+    }
   }
 
   const removeOption = (index: number) => {
@@ -27,6 +49,62 @@ export default function CreatePollPage() {
     const newOptions = [...options]
     newOptions[index] = value
     setOptions(newOptions)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Validation
+    if (!question.trim()) {
+      alert("Please enter a poll question")
+      return
+    }
+
+    const filteredOptions = options.filter(opt => opt.trim() !== "")
+    if (filteredOptions.length < 2) {
+      alert("Please provide at least 2 options")
+      return
+    }
+
+    if (filteredOptions.length > 10) {
+      alert("Maximum 10 options allowed")
+      return
+    }
+
+    const duration = parseInt(durationInDays)
+    if (isNaN(duration) || duration <= 0) {
+      alert("Please enter a valid duration")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      writeContract({
+        ...CONTRACT_CONFIG,
+        functionName: "createPoll",
+        args: [
+          question,
+          filteredOptions,
+          BigInt(duration),
+          category,
+          BigInt(projectId),
+          votingType,
+          visibility
+        ],
+        value: rewardPool ? parseEther(rewardPool) : BigInt(0),
+      })
+    } catch (err) {
+      console.error("Error creating poll:", err)
+      setIsSubmitting(false)
+    }
+  }
+
+  // Handle successful transaction
+  if (isSuccess) {
+    setTimeout(() => {
+      router.push("/creator")
+    }, 2000)
   }
 
   return (
@@ -43,7 +121,23 @@ export default function CreatePollPage() {
         <p className="text-muted-foreground text-lg">Set up a new poll for your community to vote on</p>
       </div>
 
-      <div className="space-y-6">
+      {isSuccess && (
+        <Card className="mb-6 border-green-500 bg-green-50">
+          <CardContent className="pt-6">
+            <p className="text-green-700 font-medium">Poll created successfully! Redirecting...</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="mb-6 border-red-500 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-700 font-medium">Error: {error.message}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
         <Card>
           <CardHeader>
@@ -52,21 +146,19 @@ export default function CreatePollPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Poll Title</Label>
-              <Input id="title" placeholder="Enter a clear and concise title" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Provide context and details about what participants are voting on"
-                rows={4}
+              <Label htmlFor="question">Poll Question</Label>
+              <Input
+                id="question"
+                placeholder="Enter your poll question"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                required
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select>
+                <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -81,17 +173,15 @@ export default function CreatePollPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="project">Project (Optional)</Label>
-                <Select>
-                  <SelectTrigger id="project">
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="q1-2025">Q1 2025 Governance</SelectItem>
-                    <SelectItem value="product-dev">Product Development</SelectItem>
-                    <SelectItem value="none">No Project</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="project">Project ID (Optional)</Label>
+                <Input
+                  id="project"
+                  type="number"
+                  min="0"
+                  placeholder="0 for no project"
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                />
               </div>
             </div>
           </CardContent>
@@ -133,58 +223,100 @@ export default function CreatePollPage() {
         <Card>
           <CardHeader>
             <CardTitle>Poll Settings</CardTitle>
-            <CardDescription>Configure voting rules and duration</CardDescription>
+            <CardDescription>Configure poll duration, voting type, and rewards</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="start-date">Start Date</Label>
-                <Input id="start-date" type="datetime-local" />
+                <Label htmlFor="duration">Duration (in days)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min="1"
+                  placeholder="7"
+                  value={durationInDays}
+                  onChange={(e) => setDurationInDays(e.target.value)}
+                  required
+                />
+                <p className="text-sm text-muted-foreground">How many days the poll will be active</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end-date">End Date</Label>
-                <Input id="end-date" type="datetime-local" />
+                <Label htmlFor="reward">Reward Pool (POL, optional)</Label>
+                <Input
+                  id="reward"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  placeholder="0"
+                  value={rewardPool}
+                  onChange={(e) => setRewardPool(e.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Amount of POL to distribute among participants
+                </p>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="voting-type">Voting Type</Label>
-              <Select defaultValue="single">
-                <SelectTrigger id="voting-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single Choice</SelectItem>
-                  <SelectItem value="multiple">Multiple Choice</SelectItem>
-                  <SelectItem value="ranked">Ranked Choice</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="visibility">Visibility</Label>
-              <Select defaultValue="public">
-                <SelectTrigger id="visibility">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="token-gated">Token Gated</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="voting-type">Voting Type</Label>
+                <Select value={votingType} onValueChange={setVotingType}>
+                  <SelectTrigger id="voting-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single Choice</SelectItem>
+                    <SelectItem value="multiple">Multiple Choice</SelectItem>
+                    <SelectItem value="ranked">Ranked Choice</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="visibility">Visibility</Label>
+                <Select value={visibility} onValueChange={setVisibility}>
+                  <SelectTrigger id="visibility">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="token-gated">Token Gated</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Actions */}
         <div className="flex gap-4">
-          <Button size="lg" className="flex-1">
-            Publish Poll
+          <Button
+            type="submit"
+            size="lg"
+            className="flex-1"
+            disabled={isPending || isConfirming || isSuccess}
+          >
+            {isPending || isConfirming ? "Creating Poll..." : isSuccess ? "Poll Created!" : "Create Poll"}
           </Button>
-          <Button size="lg" variant="outline" className="flex-1 bg-transparent">
-            Save as Draft
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            className="flex-1 bg-transparent"
+            onClick={() => router.push("/creator")}
+            disabled={isPending || isConfirming}
+          >
+            Cancel
           </Button>
         </div>
-      </div>
+
+        {isConfirming && (
+          <Card className="border-blue-500 bg-blue-50">
+            <CardContent className="pt-6">
+              <p className="text-blue-700 font-medium">Waiting for transaction confirmation...</p>
+            </CardContent>
+          </Card>
+        )}
+      </form>
     </div>
   )
 }

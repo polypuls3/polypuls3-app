@@ -66,7 +66,7 @@ export function usePolyPuls3() {
   };
 
   const createProject = async (name: string, description: string, tags: string) => {
-    return writeContract({
+    writeContract({
       ...CONTRACT_CONFIG,
       functionName: 'createProject',
       args: [name, description, tags],

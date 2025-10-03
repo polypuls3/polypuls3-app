@@ -8,20 +8,35 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { usePolyPuls3 } from "@/hooks/use-polypuls3"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
+import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 
 export default function CreateProjectPage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [tags, setTags] = useState("")
-  const { createProject, isPending, isConfirming, isConfirmed, error } = usePolyPuls3()
+  const { isConnected } = useAccount()
   const router = useRouter()
   const { toast } = useToast()
 
+  const { data: hash, writeContract, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!isConnected) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet to create a project",
+        variant: "destructive",
+      })
+      return
+    }
 
     if (!name.trim()) {
       toast({
@@ -33,10 +48,14 @@ export default function CreateProjectPage() {
     }
 
     try {
-      await createProject(name, description, tags)
+      writeContract({
+        ...CONTRACT_CONFIG,
+        functionName: "createProject",
+        args: [name, description, tags],
+      })
       toast({
         title: "Transaction Submitted",
-        description: "Creating your project...",
+        description: "Please confirm the transaction in your wallet",
       })
     } catch (err: any) {
       console.error("Error creating project:", err)
@@ -113,6 +132,14 @@ export default function CreateProjectPage() {
         </p>
       </div>
 
+      {!isConnected && (
+        <Card className="mb-6 border-yellow-500 bg-yellow-50">
+          <CardContent className="pt-6">
+            <p className="text-yellow-700 font-medium">Please connect your wallet to create a project</p>
+          </CardContent>
+        </Card>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
@@ -162,9 +189,9 @@ export default function CreateProjectPage() {
         )}
 
         <div className="flex gap-4">
-          <Button size="lg" className="flex-1" type="submit" disabled={isLoading}>
+          <Button size="lg" className="flex-1" type="submit" disabled={isLoading || !isConnected}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isPending ? "Confirm in Wallet..." : isConfirming ? "Creating Project..." : "Create Project"}
+            {!isConnected ? "Connect Wallet" : isPending ? "Confirm in Wallet..." : isConfirming ? "Creating Project..." : "Create Project"}
           </Button>
           <Button size="lg" variant="outline" className="flex-1 bg-transparent" asChild disabled={isLoading}>
             <Link href="/creator">Cancel</Link>

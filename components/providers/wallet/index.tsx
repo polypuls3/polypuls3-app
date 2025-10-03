@@ -2,7 +2,7 @@
 
 import { createWeb3Modal } from '@web3modal/wagmi/react'
 import { defaultWagmiConfig } from '@web3modal/wagmi/react/config'
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { supportedChains } from './chains'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -23,17 +23,8 @@ const wagmiConfig = defaultWagmiConfig({
     metadata
 })
 
-// Only initialize Web3Modal once using a module-level flag
-let web3ModalInitialized = false
-
-if (typeof window !== 'undefined' && !web3ModalInitialized) {
-    createWeb3Modal({
-        wagmiConfig,
-        projectId,
-        chains: supportedChains
-    })
-    web3ModalInitialized = true
-}
+// Initialize Web3Modal once using React's useMemo in the provider component
+// This is moved to the component to ensure it's not re-initialized on HMR
 
 interface WalletProviderProps {
     children: React.ReactNode
@@ -41,6 +32,18 @@ interface WalletProviderProps {
 
 export default function WalletProvider({ children }: WalletProviderProps) {
     const [queryClient] = useState(() => new QueryClient())
+    const modalInitialized = useRef(false)
+
+    useEffect(() => {
+        if (!modalInitialized.current) {
+            createWeb3Modal({
+                wagmiConfig,
+                projectId,
+                chains: supportedChains
+            })
+            modalInitialized.current = true
+        }
+    }, [])
 
     return (
         <WagmiProvider config={wagmiConfig}>

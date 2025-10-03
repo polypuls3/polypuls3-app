@@ -17,6 +17,7 @@ import { getProjectsByCreator, type Project } from "@/lib/graphql/queries"
 
 export default function CreatePollPage() {
   const router = useRouter()
+  const { address: walletAddress } = useAccount()
   const [question, setQuestion] = useState("")
   const [options, setOptions] = useState(["", ""])
   const [durationInDays, setDurationInDays] = useState("7")
@@ -26,12 +27,35 @@ export default function CreatePollPage() {
   const [votingType, setVotingType] = useState("single")
   const [visibility, setVisibility] = useState("public")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [userProjects, setUserProjects] = useState<Project[]>([])
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
 
   const { data: hash, writeContract, isPending, error } = useWriteContract()
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
   })
+
+  // Fetch user's projects
+  useEffect(() => {
+    async function fetchUserProjects() {
+      if (!walletAddress) {
+        setIsLoadingProjects(false)
+        return
+      }
+
+      try {
+        const projects = await getProjectsByCreator(walletAddress)
+        setUserProjects(projects)
+      } catch (error) {
+        console.error("Error fetching user projects:", error)
+      } finally {
+        setIsLoadingProjects(false)
+      }
+    }
+
+    fetchUserProjects()
+  }, [walletAddress])
 
   const addOption = () => {
     if (options.length < 10) {
@@ -173,15 +197,31 @@ export default function CreatePollPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="project">Project ID (Optional)</Label>
-                <Input
-                  id="project"
-                  type="number"
-                  min="0"
-                  placeholder="0 for no project"
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                />
+                <Label htmlFor="project">Project (Optional)</Label>
+                {isLoadingProjects ? (
+                  <div className="flex items-center justify-center h-10 border rounded-md">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Select value={projectId} onValueChange={setProjectId}>
+                    <SelectTrigger id="project">
+                      <SelectValue placeholder="No project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No project</SelectItem>
+                      {userProjects.map((project) => (
+                        <SelectItem key={project.id} value={project.projectId}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {!isLoadingProjects && userProjects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No projects found. <Link href="/creator/create-project" className="underline">Create one</Link>
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>

@@ -331,3 +331,58 @@ export async function getPollWithResponses(pollId: string): Promise<{ poll: Poll
 
   return { poll, responses };
 }
+
+// Admin queries
+export async function getAdminStats(): Promise<{
+  totalPolls: number;
+  activePolls: number;
+  totalProjects: number;
+  totalSurveys: number;
+}> {
+  const query = `
+    query GetAdminStats {
+      polls(first: 1000) {
+        id
+        isActive
+      }
+      projects(first: 1000) {
+        id
+      }
+      surveys(first: 1000) {
+        id
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{
+    polls: { id: string; isActive: boolean }[];
+    projects: { id: string }[];
+    surveys: { id: string }[];
+  }>(query, {});
+
+  return {
+    totalPolls: data.polls.length,
+    activePolls: data.polls.filter(p => p.isActive).length,
+    totalProjects: data.projects.length,
+    totalSurveys: data.surveys.length,
+  };
+}
+
+export async function getUniqueParticipants(): Promise<number> {
+  const query = `
+    query GetUniqueParticipants {
+      pollResponses(first: 1000) {
+        respondent
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{ pollResponses: { respondent: string }[] }>(query, {});
+  const uniqueRespondents = new Set(data.pollResponses.map(r => r.respondent.toLowerCase()));
+
+  return uniqueRespondents.size;
+}
+
+export async function getAllPollsWithDetails(first: number = 100): Promise<Poll[]> {
+  return getAllPolls(first, 0);
+}

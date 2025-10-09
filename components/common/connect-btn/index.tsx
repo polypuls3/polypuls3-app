@@ -11,8 +11,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import dynamic from 'next/dynamic'
 
-export default function ConnectButton() {
+function ConnectButtonComponent() {
     const { address, isConnected, chain } = useAccount()
     const { disconnect } = useDisconnect()
     const { open } = useWeb3Modal()
@@ -73,3 +74,16 @@ export default function ConnectButton() {
         </DropdownMenu>
     )
 }
+
+// Export with dynamic import to prevent SSR
+const ConnectButton = dynamic(() => Promise.resolve(ConnectButtonComponent), {
+    ssr: false,
+    loading: () => (
+        <Button variant="default" className="gap-2" disabled>
+            <Wallet className="h-4 w-4" />
+            Connect Wallet
+        </Button>
+    )
+})
+
+export default ConnectButton

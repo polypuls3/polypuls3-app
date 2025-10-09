@@ -23,6 +23,10 @@ export interface Poll {
   rewardPool: string;
   isActive: boolean;
   totalResponses: string;
+  category: string;
+  projectId: string;
+  votingType: string;
+  visibility: string;
 }
 
 export interface Survey {
@@ -127,6 +131,10 @@ export async function getPollsByCreator(creator: string): Promise<Poll[]> {
         rewardPool
         isActive
         totalResponses
+        category
+        projectId
+        votingType
+        visibility
       }
     }
   `;
@@ -135,7 +143,7 @@ export async function getPollsByCreator(creator: string): Promise<Poll[]> {
   return data.polls;
 }
 
-export async function getAllPolls(first: number = 10, skip: number = 0): Promise<Poll[]> {
+export async function getAllPolls(first: number = 100, skip: number = 0): Promise<Poll[]> {
   const query = `
     query GetAllPolls($first: Int!, $skip: Int!) {
       polls(
@@ -155,6 +163,10 @@ export async function getAllPolls(first: number = 10, skip: number = 0): Promise
         rewardPool
         isActive
         totalResponses
+        category
+        projectId
+        votingType
+        visibility
       }
     }
   `;
@@ -261,4 +273,61 @@ export async function getSurveyResponses(surveyId: string): Promise<SurveyRespon
 
   const data = await querySubgraph<{ surveyResponses: SurveyResponse[] }>(query, { surveyId });
   return data.surveyResponses;
+}
+
+export async function getUserPollResponses(respondent: string): Promise<PollResponse[]> {
+  const query = `
+    query GetUserPollResponses($respondent: Bytes!) {
+      pollResponses(
+        where: { respondent: $respondent }
+        orderBy: timestamp
+        orderDirection: desc
+      ) {
+        id
+        pollId
+        respondent
+        optionIndex
+        timestamp
+        rewardClaimed
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{ pollResponses: PollResponse[] }>(query, { respondent: respondent.toLowerCase() });
+  return data.pollResponses;
+}
+
+export async function getPollById(pollId: string): Promise<Poll | null> {
+  const query = `
+    query GetPollById($pollId: String!) {
+      polls(where: { pollId: $pollId }) {
+        id
+        pollId
+        creator
+        question
+        options
+        createdAt
+        expiresAt
+        rewardPool
+        isActive
+        totalResponses
+        category
+        projectId
+        votingType
+        visibility
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{ polls: Poll[] }>(query, { pollId });
+  return data.polls.length > 0 ? data.polls[0] : null;
+}
+
+export async function getPollWithResponses(pollId: string): Promise<{ poll: Poll | null; responses: PollResponse[] }> {
+  const [poll, responses] = await Promise.all([
+    getPollById(pollId),
+    getPollResponses(pollId)
+  ]);
+
+  return { poll, responses };
 }

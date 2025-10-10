@@ -112,14 +112,16 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
     if (isSuccess) {
       toast({
         title: "Vote submitted successfully!",
-        description: "Your vote has been recorded on the blockchain",
+        description: "Your vote has been recorded on the blockchain. Redirecting...",
       })
 
       // Reset the transaction state
       reset()
 
-      // Refresh the page to show updated results
-      router.refresh()
+      // Redirect to participant page after short delay
+      setTimeout(() => {
+        router.push('/participant')
+      }, 1500)
     }
   }, [isSuccess, toast, reset, router])
 

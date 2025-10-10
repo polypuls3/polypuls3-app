@@ -7,12 +7,18 @@ import { Input } from "@/components/ui/input"
 import { Search, TrendingUp, Clock, CheckCircle2, Users, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { usePolls } from "@/hooks/use-polls"
+import { PollStatus } from "@/lib/graphql/queries"
 import { useMemo, useState } from "react"
 
 export default function ParticipantPage() {
   const { polls, userResponses, loading, error } = usePolls()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
+  // Filter to only show polls with ACTIVE status
+  const activePolls = useMemo(() => {
+    return polls.filter(poll => poll.status === PollStatus.ACTIVE)
+  }, [polls])
 
   // Helper function to check if poll is ending soon (within 24 hours)
   const isEndingSoon = (expiresAt: string) => {
@@ -28,15 +34,15 @@ export default function ParticipantPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  // Get unique categories from polls
+  // Get unique categories from active polls only
   const categories = useMemo(() => {
-    const uniqueCategories = new Set(polls.map(poll => poll.category))
+    const uniqueCategories = new Set(activePolls.map(poll => poll.category))
     return Array.from(uniqueCategories).filter(cat => cat && cat.trim() !== '')
-  }, [polls])
+  }, [activePolls])
 
-  // Filter polls based on search and category
+  // Filter active polls based on search and category
   const filteredPolls = useMemo(() => {
-    return polls.filter(poll => {
+    return activePolls.filter(poll => {
       const matchesSearch = searchTerm === "" ||
         poll.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
         poll.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -45,16 +51,16 @@ export default function ParticipantPage() {
 
       return matchesSearch && matchesCategory
     })
-  }, [polls, searchTerm, selectedCategory])
+  }, [activePolls, searchTerm, selectedCategory])
 
-  // Calculate stats
+  // Calculate stats from active polls only
   const stats = useMemo(() => {
-    const activePolls = polls.filter(p => p.isActive).length
+    const activePollsCount = activePolls.length
     const userVotes = userResponses.length
-    const totalParticipants = polls.reduce((sum, poll) => sum + parseInt(poll.totalResponses || '0'), 0)
+    const totalParticipants = activePolls.reduce((sum, poll) => sum + parseInt(poll.totalResponses || '0'), 0)
 
-    return { activePolls, userVotes, totalParticipants }
-  }, [polls, userResponses])
+    return { activePolls: activePollsCount, userVotes, totalParticipants }
+  }, [activePolls, userResponses])
   if (error) {
     return (
       <div className="container py-8">
@@ -174,7 +180,7 @@ export default function ParticipantPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
-              {polls.length === 0
+              {activePolls.length === 0
                 ? "No active polls available at the moment."
                 : "No polls match your search criteria."}
             </p>

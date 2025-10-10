@@ -1,5 +1,13 @@
 import { querySubgraph } from './client';
 
+// Enums matching subgraph
+export enum PollStatus {
+  ACTIVE = 'ACTIVE',
+  ENDED = 'ENDED',
+  CLAIMING_ENABLED = 'CLAIMING_ENABLED',
+  CLAIMING_DISABLED = 'CLAIMING_DISABLED'
+}
+
 // Types matching subgraph entities
 export interface Project {
   id: string;
@@ -27,6 +35,7 @@ export interface Poll {
   projectId: string;
   votingType: string;
   visibility: string;
+  status: PollStatus;
 }
 
 export interface Survey {
@@ -51,6 +60,7 @@ export interface PollResponse {
   optionIndex: string;
   timestamp: string;
   rewardClaimed: boolean;
+  poll?: Poll;
 }
 
 export interface SurveyResponse {
@@ -135,6 +145,7 @@ export async function getPollsByCreator(creator: string): Promise<Poll[]> {
         projectId
         votingType
         visibility
+        status
       }
     }
   `;
@@ -167,6 +178,7 @@ export async function getAllPolls(first: number = 100, skip: number = 0): Promis
         projectId
         votingType
         visibility
+        status
       }
     }
   `;
@@ -315,6 +327,7 @@ export async function getPollById(pollId: string): Promise<Poll | null> {
         projectId
         votingType
         visibility
+        status
       }
     }
   `;
@@ -385,4 +398,43 @@ export async function getUniqueParticipants(): Promise<number> {
 
 export async function getAllPollsWithDetails(first: number = 100): Promise<Poll[]> {
   return getAllPolls(first, 0);
+}
+
+export async function getUserClaimablePollResponses(respondent: string): Promise<PollResponse[]> {
+  const query = `
+    query GetUserClaimablePollResponses($respondent: Bytes!) {
+      pollResponses(
+        where: { respondent: $respondent }
+        orderBy: timestamp
+        orderDirection: desc
+      ) {
+        id
+        pollId
+        respondent
+        optionIndex
+        timestamp
+        rewardClaimed
+        poll {
+          id
+          pollId
+          creator
+          question
+          options
+          createdAt
+          expiresAt
+          rewardPool
+          isActive
+          totalResponses
+          category
+          projectId
+          votingType
+          visibility
+          status
+        }
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{ pollResponses: PollResponse[] }>(query, { respondent: respondent.toLowerCase() });
+  return data.pollResponses;
 }

@@ -5,15 +5,41 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreVertical, CheckCircle2, Users, BarChart3, TrendingUp, Loader2, FileStack } from "lucide-react"
+import { Search, CheckCircle2, Users, BarChart3, TrendingUp, Loader2, FileStack } from "lucide-react"
 import { useAdminData } from "@/hooks/use-admin-data"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi"
+import { CONTRACT_CONFIG } from "@/lib/contracts/config"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { PollStatus } from "@/lib/graphql/queries"
 
 export default function AdminPage() {
   const { stats, polls, loading, error } = useAdminData()
   const [searchTerm, setSearchTerm] = useState("")
+  const { isConnected, address: connectedAddress } = useAccount()
+  const { toast } = useToast()
+  const router = useRouter()
+
+  const { writeContract, data: hash, isPending: isWritePending, reset } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+  // Handle successful transaction
+  useEffect(() => {
+    if (isSuccess) {
+      toast({
+        title: "Success",
+        description: "Poll status updated. Refreshing in a few seconds...",
+      })
+      reset()
+
+      // Wait for subgraph to index the new status (3-5 seconds)
+      setTimeout(() => {
+        window.location.reload()
+      }, 4000)
+    }
+  }, [isSuccess, toast, reset, router])
 
   // Helper functions
   const formatAddress = (addr: string) => {
@@ -25,15 +51,110 @@ export default function AdminPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  const isPollExpired = (expiresAt: string) => {
-    const now = Math.floor(Date.now() / 1000)
-    return parseInt(expiresAt) < now
+  const getStatusBadgeVariant = (status: PollStatus) => {
+    switch (status) {
+      case PollStatus.ACTIVE:
+        return { variant: 'default' as const, className: 'bg-green-600 hover:bg-green-700' }
+      case PollStatus.CLAIMING_ENABLED:
+        return { variant: 'default' as const, className: 'bg-blue-600 hover:bg-blue-700' }
+      case PollStatus.ENDED:
+        return { variant: 'secondary' as const, className: 'bg-orange-600 hover:bg-orange-700' }
+      case PollStatus.CLAIMING_DISABLED:
+        return { variant: 'secondary' as const, className: 'bg-gray-600 hover:bg-gray-700' }
+      default:
+        return { variant: 'secondary' as const, className: '' }
+    }
   }
 
-  const getPollStatus = (poll: typeof polls[0]) => {
-    if (!poll.isActive) return 'inactive'
-    if (isPollExpired(poll.expiresAt)) return 'ended'
-    return 'active'
+  const getStatusLabel = (status: PollStatus) => {
+    switch (status) {
+      case PollStatus.ACTIVE: return 'Active'
+      case PollStatus.ENDED: return 'Ended'
+      case PollStatus.CLAIMING_ENABLED: return 'Claiming Enabled'
+      case PollStatus.CLAIMING_DISABLED: return 'Claiming Disabled'
+      default: return 'Unknown'
+    }
+  }
+
+  const getStatusActions = (status: PollStatus) => {
+    switch (status) {
+      case PollStatus.ACTIVE:
+        return [{ label: 'End Voting', function: 'endVoting' }]
+      case PollStatus.ENDED:
+        return [
+          { label: 'Enable Claiming', function: 'enableClaiming' },
+          { label: 'Disable Claiming', function: 'disableClaiming' }
+        ]
+      case PollStatus.CLAIMING_ENABLED:
+        return [{ label: 'Disable Claiming', function: 'disableClaiming' }]
+      case PollStatus.CLAIMING_DISABLED:
+        return [{ label: 'Enable Claiming', function: 'enableClaiming' }]
+      default:
+        return []
+    }
+  }
+
+  const handleStatusAction = async (pollId: string, functionName: string, actionLabel: string) => {
+    if (!isConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to manage polls",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Find the poll to check creator
+    const poll = polls.find(p => p.pollId === pollId)
+
+    console.log('=== Status Action Debug Info ===')
+    console.log('Function:', functionName)
+    console.log('Poll ID:', pollId)
+    console.log('Connected wallet:', connectedAddress)
+    console.log('Poll creator:', poll?.creator)
+    console.log('Wallet matches creator:', poll?.creator.toLowerCase() === connectedAddress?.toLowerCase())
+    console.log('==============================')
+
+    // Check if connected wallet is the poll creator
+    if (poll && poll.creator.toLowerCase() !== connectedAddress?.toLowerCase()) {
+      toast({
+        title: "Permission denied",
+        description: `Only the poll creator can manage this poll. Creator: ${poll.creator.slice(0, 6)}...${poll.creator.slice(-4)}`,
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      writeContract({
+        ...CONTRACT_CONFIG,
+        functionName,
+        args: [BigInt(pollId)]
+      }, {
+        onSuccess: (hash) => {
+          console.log('Transaction hash:', hash)
+          toast({
+            title: "Transaction submitted",
+            description: `${actionLabel}... Hash: ${hash.slice(0, 10)}...`,
+          })
+        },
+        onError: (error) => {
+          console.error('Transaction error:', error)
+          toast({
+            title: "Transaction failed",
+            description: error.message || "Failed to update poll status",
+            variant: "destructive"
+          })
+        }
+      })
+    } catch (err) {
+      console.error('Error updating poll status:', err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to update poll status",
+        variant: "destructive"
+      })
+    }
   }
 
   // Filter polls based on search
@@ -162,6 +283,7 @@ export default function AdminPage() {
               {polls.length === 0 ? "No polls found" : "No polls match your search"}
             </div>
           ) : (
+            <div className="relative w-full overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -176,7 +298,9 @@ export default function AdminPage() {
               </TableHeader>
               <TableBody>
                 {filteredPolls.map((poll) => {
-                  const status = getPollStatus(poll)
+                  const statusBadge = getStatusBadgeVariant(poll.status)
+                  const statusActions = getStatusActions(poll.status)
+                  console.log('poll', poll)
                   return (
                     <TableRow key={poll.id}>
                       <TableCell className="font-medium max-w-md">
@@ -190,34 +314,46 @@ export default function AdminPage() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={status === "active" ? "default" : "secondary"}
-                          className={status === "active" ? "bg-green-600 hover:bg-green-700" : ""}
+                          variant={statusBadge.variant}
+                          className={statusBadge.className}
                         >
-                          {status}
+                          {getStatusLabel(poll.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>{parseInt(poll.totalResponses || '0').toLocaleString()}</TableCell>
                       <TableCell>{formatDate(poll.createdAt)}</TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                          >
+                            <Link href={`/participant/poll/${poll.pollId}`}>View</Link>
+                          </Button>
+                          {statusActions.map((action, idx) => (
+                            <Button
+                              key={idx}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStatusAction(poll.pollId, action.function, action.label)}
+                              disabled={isWritePending || isConfirming || !isConnected}
+                            >
+                              {isWritePending || isConfirming ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                action.label
+                              )}
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/participant/poll/${poll.pollId}`}>View Poll</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>View Analytics</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          ))}
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

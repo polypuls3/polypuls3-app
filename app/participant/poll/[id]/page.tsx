@@ -28,8 +28,8 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
   const { toast } = useToast()
   const router = useRouter()
 
-  const { writeContract, data: hash, isPending: isWritePending, reset } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+  const { writeContract, data: hash, isPending: isWritePending, error: writeError, reset } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess, isError: isConfirmError, error: confirmError } = useWaitForTransactionReceipt({ hash })
 
   // Helper functions
   const formatAddress = (addr: string) => {
@@ -81,17 +81,27 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
         ...CONTRACT_CONFIG,
         functionName: 'respondToPoll',
         args: [BigInt(params.id), BigInt(selectedOption)]
-      })
-
-      toast({
-        title: "Transaction submitted",
-        description: "Your vote is being processed...",
+      }, {
+        onSuccess: () => {
+          toast({
+            title: "Transaction submitted",
+            description: "Your vote is being processed...",
+          })
+        },
+        onError: (error) => {
+          console.error('Transaction submission error:', error)
+          toast({
+            title: "Transaction failed",
+            description: error.message || "Failed to submit your vote. Please try again.",
+            variant: "destructive"
+          })
+        }
       })
     } catch (err) {
-      console.error('Error submitting vote:', err)
+      console.error('Unexpected error submitting vote:', err)
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to submit vote",
+        description: err instanceof Error ? err.message : "An unexpected error occurred",
         variant: "destructive"
       })
     }
@@ -112,6 +122,31 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
       router.refresh()
     }
   }, [isSuccess, toast, reset, router])
+
+  // Handle transaction confirmation error
+  useEffect(() => {
+    if (isConfirmError && confirmError) {
+      console.error('Transaction confirmation error:', confirmError)
+      toast({
+        title: "Transaction failed",
+        description: confirmError.message || "Your vote transaction failed. Please try again.",
+        variant: "destructive"
+      })
+      reset()
+    }
+  }, [isConfirmError, confirmError, toast, reset])
+
+  // Handle write contract error
+  useEffect(() => {
+    if (writeError) {
+      console.error('Write contract error:', writeError)
+      toast({
+        title: "Transaction rejected",
+        description: writeError.message || "Transaction was rejected. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }, [writeError, toast])
 
   if (loading) {
     return (

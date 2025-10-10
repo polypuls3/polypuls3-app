@@ -370,6 +370,45 @@
         "type": "uint256"
       }
     ],
+    "name": "disableClaiming",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_pollId",
+        "type": "uint256"
+      }
+    ],
+    "name": "enableClaiming",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_pollId",
+        "type": "uint256"
+      }
+    ],
+    "name": "endVoting",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_pollId",
+        "type": "uint256"
+      }
+    ],
     "name": "getPoll",
     "outputs": [
       {
@@ -438,6 +477,11 @@
             "internalType": "string",
             "name": "visibility",
             "type": "string"
+          },
+          {
+            "internalType": "enum PolyPuls3Poll.PollStatus",
+            "name": "status",
+            "type": "uint8"
           }
         ],
         "internalType": "struct PolyPuls3Poll.Poll",
@@ -481,6 +525,25 @@
         "internalType": "uint256[]",
         "name": "",
         "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_pollId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPollStatus",
+    "outputs": [
+      {
+        "internalType": "enum PolyPuls3Poll.PollStatus",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",

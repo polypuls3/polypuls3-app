@@ -16,6 +16,7 @@ export function Header() {
   const navItems = [
     { href: "/", label: "Home" },
     { href: "/participant", label: "Vote" },
+    { href: "/claims", label: "Claims" },
     { href: "/creator", label: "Create" },
     { href: "/admin", label: "Admin" },
   ]

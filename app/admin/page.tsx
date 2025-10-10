@@ -51,6 +51,12 @@ export default function AdminPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
+  const formatPOL = (wei: string) => {
+    const value = BigInt(wei)
+    const eth = Number(value) / 1e18
+    return eth.toFixed(4)
+  }
+
   const getStatusBadgeVariant = (status: PollStatus) => {
     switch (status) {
       case PollStatus.ACTIVE:
@@ -61,6 +67,8 @@ export default function AdminPage() {
         return { variant: 'secondary' as const, className: 'bg-orange-600 hover:bg-orange-700' }
       case PollStatus.CLAIMING_DISABLED:
         return { variant: 'secondary' as const, className: 'bg-gray-600 hover:bg-gray-700' }
+      case PollStatus.CLOSED:
+        return { variant: 'secondary' as const, className: 'bg-slate-600 hover:bg-slate-700' }
       default:
         return { variant: 'secondary' as const, className: '' }
     }
@@ -72,6 +80,7 @@ export default function AdminPage() {
       case PollStatus.ENDED: return 'Ended'
       case PollStatus.CLAIMING_ENABLED: return 'Claiming Enabled'
       case PollStatus.CLAIMING_DISABLED: return 'Claiming Disabled'
+      case PollStatus.CLOSED: return 'Closed'
       default: return 'Unknown'
     }
   }
@@ -83,12 +92,21 @@ export default function AdminPage() {
       case PollStatus.ENDED:
         return [
           { label: 'Enable Claiming', function: 'enableClaiming' },
-          { label: 'Disable Claiming', function: 'disableClaiming' }
+          { label: 'Disable Claiming', function: 'disableClaiming' },
+          { label: 'Close Poll', function: 'closePoll', variant: 'destructive' as const }
         ]
       case PollStatus.CLAIMING_ENABLED:
-        return [{ label: 'Disable Claiming', function: 'disableClaiming' }]
+        return [
+          { label: 'Disable Claiming', function: 'disableClaiming' },
+          { label: 'Close Poll', function: 'closePoll', variant: 'destructive' as const }
+        ]
       case PollStatus.CLAIMING_DISABLED:
-        return [{ label: 'Enable Claiming', function: 'enableClaiming' }]
+        return [
+          { label: 'Enable Claiming', function: 'enableClaiming' },
+          { label: 'Close Poll', function: 'closePoll', variant: 'destructive' as const }
+        ]
+      case PollStatus.CLOSED:
+        return []
       default:
         return []
     }
@@ -292,6 +310,7 @@ export default function AdminPage() {
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Votes</TableHead>
+                  <TableHead>Rewards/Fee</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -321,31 +340,57 @@ export default function AdminPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{parseInt(poll.totalResponses || '0').toLocaleString()}</TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          <div className="font-medium">{formatPOL(poll.rewardPool)} POL</div>
+                          <div className="text-muted-foreground">
+                            Fee: {formatPOL(poll.platformFeeAmount || '0')} POL
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell>{formatDate(poll.createdAt)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            asChild
-                          >
-                            <Link href={`/participant/poll/${poll.pollId}`}>View</Link>
-                          </Button>
-                          {statusActions.map((action, idx) => (
+                        <div className="flex flex-col items-end gap-2">
+                          {/* Claim Statistics */}
+                          {(poll.status === PollStatus.CLAIMING_ENABLED ||
+                            poll.status === PollStatus.CLAIMING_DISABLED ||
+                            poll.status === PollStatus.CLOSED) && (
+                            <div className="text-xs text-muted-foreground">
+                              <span className="font-medium">
+                                {parseInt(poll.claimedRewards || '0')}/{parseInt(poll.totalResponses || '0')} claimed
+                              </span>
+                              {' '}
+                              <span>
+                                ({poll.totalResponses && parseInt(poll.totalResponses) > 0
+                                  ? Math.round((1 - parseInt(poll.claimedRewards || '0') / parseInt(poll.totalResponses)) * 100)
+                                  : 0}% remaining)
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end gap-2">
                             <Button
-                              key={idx}
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => handleStatusAction(poll.pollId, action.function, action.label)}
-                              disabled={isWritePending || isConfirming || !isConnected}
+                              asChild
                             >
-                              {isWritePending || isConfirming ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                action.label
-                              )}
+                              <Link href={`/participant/poll/${poll.pollId}`}>View</Link>
                             </Button>
-                          ))}
+                            {statusActions.map((action, idx) => (
+                              <Button
+                                key={idx}
+                                variant={action.variant || 'outline'}
+                                size="sm"
+                                onClick={() => handleStatusAction(poll.pollId, action.function, action.label)}
+                                disabled={isWritePending || isConfirming || !isConnected}
+                              >
+                                {isWritePending || isConfirming ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  action.label
+                                )}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>

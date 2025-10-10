@@ -5,7 +5,8 @@ export enum PollStatus {
   ACTIVE = 'ACTIVE',
   ENDED = 'ENDED',
   CLAIMING_ENABLED = 'CLAIMING_ENABLED',
-  CLAIMING_DISABLED = 'CLAIMING_DISABLED'
+  CLAIMING_DISABLED = 'CLAIMING_DISABLED',
+  CLOSED = 'CLOSED'
 }
 
 // Types matching subgraph entities
@@ -36,6 +37,8 @@ export interface Poll {
   votingType: string;
   visibility: string;
   status: PollStatus;
+  platformFeeAmount: string;
+  claimedRewards: string;
 }
 
 export interface Survey {
@@ -146,6 +149,8 @@ export async function getPollsByCreator(creator: string): Promise<Poll[]> {
         votingType
         visibility
         status
+        platformFeeAmount
+        claimedRewards
       }
     }
   `;
@@ -179,6 +184,8 @@ export async function getAllPolls(first: number = 100, skip: number = 0): Promis
         votingType
         visibility
         status
+        platformFeeAmount
+        claimedRewards
       }
     }
   `;
@@ -328,6 +335,8 @@ export async function getPollById(pollId: string): Promise<Poll | null> {
         votingType
         visibility
         status
+        platformFeeAmount
+        claimedRewards
       }
     }
   `;
@@ -430,6 +439,8 @@ export async function getUserClaimablePollResponses(respondent: string): Promise
           votingType
           visibility
           status
+          platformFeeAmount
+          claimedRewards
         }
       }
     }

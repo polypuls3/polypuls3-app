@@ -5,15 +5,56 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, CheckCircle2, Users, BarChart3, TrendingUp, Loader2, FileStack } from "lucide-react"
+import { Search, CheckCircle2, Users, BarChart3, TrendingUp, Loader2, FileStack, Settings, DollarSign } from "lucide-react"
 import { useAdminData } from "@/hooks/use-admin-data"
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi"
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from "wagmi"
+import { formatEther } from "viem"
 import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { PollStatus } from "@/lib/graphql/queries"
+
+const POLL_CONTRACT = {
+  address: process.env.NEXT_PUBLIC_POLL_CONTRACT_ADDRESS as `0x${string}`,
+  abi: [
+    {
+      inputs: [],
+      name: 'platformFeePercentage',
+      outputs: [{ name: '', type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'treasuryAddress',
+      outputs: [{ name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+} as const
+
+const TREASURY_CONTRACT = {
+  address: process.env.NEXT_PUBLIC_TREASURY_ADDRESS as `0x${string}`,
+  abi: [
+    {
+      inputs: [],
+      name: 'getBalance',
+      outputs: [{ name: '', type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'totalFeesCollected',
+      outputs: [{ name: '', type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+} as const
 
 export default function AdminPage() {
   const { stats, polls, loading, error } = useAdminData()
@@ -24,6 +65,27 @@ export default function AdminPage() {
 
   const { writeContract, data: hash, isPending: isWritePending, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+  // Read platform settings
+  const { data: platformFee } = useReadContract({
+    ...POLL_CONTRACT,
+    functionName: 'platformFeePercentage',
+  })
+
+  const { data: treasuryAddress } = useReadContract({
+    ...POLL_CONTRACT,
+    functionName: 'treasuryAddress',
+  })
+
+  const { data: treasuryBalance } = useReadContract({
+    ...TREASURY_CONTRACT,
+    functionName: 'getBalance',
+  })
+
+  const { data: totalFeesCollected } = useReadContract({
+    ...TREASURY_CONTRACT,
+    functionName: 'totalFeesCollected',
+  })
 
   // Handle successful transaction
   useEffect(() => {
@@ -275,6 +337,79 @@ export default function AdminPage() {
         </Card>
       </div>
 
+      {/* Platform Settings Section */}
+      <Card className="mb-8 border-purple-200 dark:border-purple-900">
+        <CardHeader className="bg-purple-50 dark:bg-purple-950/20">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Platform Settings
+            </CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Full Settings
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Platform Fee */}
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-600/10">
+                <DollarSign className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Platform Fee</p>
+                <p className="text-2xl font-bold">
+                  {platformFee ? Number(platformFee) / 100 : 0}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {platformFee ? platformFee.toString() : '0'} basis points
+                </p>
+              </div>
+            </div>
+
+            {/* Treasury Balance */}
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/10">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Treasury Balance</p>
+                <p className="text-2xl font-bold">
+                  {treasuryBalance ? parseFloat(formatEther(treasuryBalance)).toFixed(4) : '0.0000'} POL
+                </p>
+                <p className="text-xs text-muted-foreground">Available to withdraw</p>
+              </div>
+            </div>
+
+            {/* Total Fees Collected */}
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-600/10">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Fees Collected</p>
+                <p className="text-2xl font-bold">
+                  {totalFeesCollected ? parseFloat(formatEther(totalFeesCollected)).toFixed(4) : '0.0000'} POL
+                </p>
+                <p className="text-xs text-muted-foreground">Lifetime earnings</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Treasury Address Display */}
+          <div className="mt-6 p-3 bg-muted rounded-lg">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Treasury Contract Address</p>
+            <p className="text-xs font-mono break-all">
+              {treasuryAddress as string || '0x0000000000000000000000000000000000000000'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Recent Polls Table */}
       <Card>
         <CardHeader>
@@ -445,6 +580,12 @@ export default function AdminPage() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
+            <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+              <Link href="/admin/settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Platform Settings
+              </Link>
+            </Button>
             <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
               <Link href="/participant">View All Polls</Link>
             </Button>

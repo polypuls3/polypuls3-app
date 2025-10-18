@@ -150,7 +150,7 @@ export async function getPollsByCreator(creator: string): Promise<Poll[]> {
   const query = `
     query GetPollsByCreator($creator: Bytes!) {
       polls(
-        where: { creator: $creator, isActive: true }
+        where: { creator: $creator }
         orderBy: createdAt
         orderDirection: desc
       ) {
@@ -218,7 +218,7 @@ export async function getPollsByProject(projectId: string): Promise<Poll[]> {
   const query = `
     query GetPollsByProject($projectId: String!) {
       polls(
-        where: { projectId: $projectId, isActive: true }
+        where: { projectId: $projectId }
         orderBy: createdAt
         orderDirection: desc
       ) {
@@ -251,7 +251,7 @@ export async function getSurveysByCreator(creator: string): Promise<Survey[]> {
   const query = `
     query GetSurveysByCreator($creator: Bytes!) {
       surveys(
-        where: { creator: $creator, isActive: true }
+        where: { creator: $creator }
         orderBy: createdAt
         orderDirection: desc
       ) {
@@ -279,7 +279,7 @@ export async function getSurveysByProject(projectId: string): Promise<Survey[]> 
   const query = `
     query GetSurveysByProject($projectId: String!) {
       surveys(
-        where: { projectId: $projectId, isActive: true }
+        where: { projectId: $projectId }
         orderBy: createdAt
         orderDirection: desc
       ) {

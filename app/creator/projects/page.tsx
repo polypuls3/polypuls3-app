@@ -13,7 +13,6 @@ import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useToast } from "@/hooks/use-toast"
 import { type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
 import { useDataFetcher } from "@/hooks/use-data-fetcher"
-import { DataSourceToggle } from "@/components/data-source-toggle"
 
 export default function ProjectDetailPage() {
   const router = useRouter()
@@ -289,7 +288,6 @@ export default function ProjectDetailPage() {
             Back to Dashboard
           </Link>
         </Button>
-        <DataSourceToggle />
       </div>
 
       {/* Project Header */}

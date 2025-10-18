@@ -10,7 +10,6 @@ import { useAccount } from "wagmi"
 import { useEffect, useState } from "react"
 import { type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
 import { useDataFetcher } from "@/hooks/use-data-fetcher"
-import { DataSourceToggle } from "@/components/data-source-toggle"
 
 export default function CreatorPage() {
   const { address: walletAddress } = useAccount()
@@ -141,9 +140,6 @@ export default function CreatorPage() {
               </Link>
             </Button>
           </div>
-        </div>
-        <div className="flex justify-end">
-          <DataSourceToggle />
         </div>
       </div>
 

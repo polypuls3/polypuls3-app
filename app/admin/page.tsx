@@ -15,7 +15,6 @@ import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { PollStatus } from "@/lib/graphql/queries"
-import { DataSourceToggle } from "@/components/data-source-toggle"
 
 const POLL_CONTRACT = {
   address: process.env.NEXT_PUBLIC_POLL_CONTRACT_ADDRESS as `0x${string}`,
@@ -261,14 +260,9 @@ export default function AdminPage() {
   }
   return (
     <div className="container py-8">
-      <div className="mb-8 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight mb-2">Admin Dashboard</h1>
-            <p className="text-muted-foreground text-lg">Monitor and manage platform activity</p>
-          </div>
-          <DataSourceToggle />
-        </div>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold tracking-tight mb-2">Admin Dashboard</h1>
+        <p className="text-muted-foreground text-lg">Monitor and manage platform activity</p>
       </div>
 
       {/* Stats Cards */}

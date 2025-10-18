@@ -8,6 +8,7 @@ import { Vote, Menu, X } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import ConnectButton from "@/components/common/connect-btn"
+import { DataSourceToggle } from "@/components/data-source-toggle"
 
 export function Header() {
   const pathname = usePathname()
@@ -48,6 +49,9 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <div className="hidden lg:flex">
+            <DataSourceToggle />
+          </div>
           <ThemeToggle />
           <div className="hidden sm:inline-flex">
             <ConnectButton />
@@ -77,6 +81,9 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            <div className="sm:hidden">
+              <DataSourceToggle />
+            </div>
             <ConnectButton />
           </nav>
         </div>

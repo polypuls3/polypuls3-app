@@ -20,13 +20,23 @@ const hardhat: Chain = {
     },*/
 }
 
-export const supportedChains: readonly [Chain, ...Chain[]] = [
-    hardhat,
+// Only include hardhat chain in development environment
+const productionChains: readonly [Chain, ...Chain[]] = [
+    polygonAmoy,
+    polygon,
     mainnet,
     goerli,
-    polygon,
     polygonMumbai,
-    polygonAmoy,
     polygonZkEvm,
     polygonZkEvmTestnet
 ]
+
+const developmentChains: readonly [Chain, ...Chain[]] = [
+    hardhat,
+    ...productionChains
+]
+
+export const supportedChains: readonly [Chain, ...Chain[]] =
+    process.env.NODE_ENV === 'development'
+        ? developmentChains
+        : productionChains

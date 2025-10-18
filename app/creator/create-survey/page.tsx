@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, X, GripVertical } from "lucide-react"
+import { ArrowLeft, Plus, X, GripVertical, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import { useAccount } from "wagmi"
+import { getProjectsByCreator, type Project } from "@/lib/graphql/queries"
 
 type QuestionType = "text" | "multiple-choice" | "rating" | "yes-no"
 
@@ -20,7 +23,39 @@ interface Question {
 }
 
 export default function CreateSurveyPage() {
+  const searchParams = useSearchParams()
+  const { address: walletAddress } = useAccount()
   const [questions, setQuestions] = useState<Question[]>([{ id: "1", type: "text", question: "" }])
+  const [projectId, setProjectId] = useState("0")
+  const [userProjects, setUserProjects] = useState<Project[]>([])
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
+
+  // Fetch user's projects
+  useEffect(() => {
+    async function fetchUserProjects() {
+      if (!walletAddress) {
+        setIsLoadingProjects(false)
+        return
+      }
+
+      try {
+        const projects = await getProjectsByCreator(walletAddress)
+        setUserProjects(projects)
+
+        // Pre-select project from URL param if available
+        const urlProjectId = searchParams.get('projectId')
+        if (urlProjectId && projects.some(p => p.projectId === urlProjectId)) {
+          setProjectId(urlProjectId)
+        }
+      } catch (error) {
+        console.error("Error fetching user projects:", error)
+      } finally {
+        setIsLoadingProjects(false)
+      }
+    }
+
+    fetchUserProjects()
+  }, [walletAddress, searchParams])
 
   const addQuestion = () => {
     setQuestions([...questions, { id: Date.now().toString(), type: "text", question: "" }])
@@ -89,16 +124,30 @@ export default function CreateSurveyPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="project">Project (Optional)</Label>
-                <Select>
-                  <SelectTrigger id="project">
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="q1-2025">Q1 2025 Governance</SelectItem>
-                    <SelectItem value="product-dev">Product Development</SelectItem>
-                    <SelectItem value="none">No Project</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isLoadingProjects ? (
+                  <div className="flex items-center justify-center h-10 border rounded-md">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Select value={projectId} onValueChange={setProjectId}>
+                    <SelectTrigger id="project">
+                      <SelectValue placeholder="No project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No project</SelectItem>
+                      {userProjects.map((project) => (
+                        <SelectItem key={project.id} value={project.projectId}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {!isLoadingProjects && userProjects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No projects found. <Link href="/creator/create-project" className="underline">Create one</Link>
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>

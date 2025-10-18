@@ -126,6 +126,26 @@ export async function getAllProjects(first: number = 10, skip: number = 0): Prom
   return data.projects;
 }
 
+export async function getProjectById(projectId: string): Promise<Project | null> {
+  const query = `
+    query GetProjectById($projectId: String!) {
+      projects(where: { projectId: $projectId }) {
+        id
+        projectId
+        creator
+        name
+        description
+        tags
+        createdAt
+        isActive
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{ projects: Project[] }>(query, { projectId });
+  return data.projects.length > 0 ? data.projects[0] : null;
+}
+
 export async function getPollsByCreator(creator: string): Promise<Poll[]> {
   const query = `
     query GetPollsByCreator($creator: Bytes!) {
@@ -191,6 +211,39 @@ export async function getAllPolls(first: number = 100, skip: number = 0): Promis
   `;
 
   const data = await querySubgraph<{ polls: Poll[] }>(query, { first, skip });
+  return data.polls;
+}
+
+export async function getPollsByProject(projectId: string): Promise<Poll[]> {
+  const query = `
+    query GetPollsByProject($projectId: String!) {
+      polls(
+        where: { projectId: $projectId, isActive: true }
+        orderBy: createdAt
+        orderDirection: desc
+      ) {
+        id
+        pollId
+        creator
+        question
+        options
+        createdAt
+        expiresAt
+        rewardPool
+        isActive
+        totalResponses
+        category
+        projectId
+        votingType
+        visibility
+        status
+        platformFeeAmount
+        claimedRewards
+      }
+    }
+  `;
+
+  const data = await querySubgraph<{ polls: Poll[] }>(query, { projectId });
   return data.polls;
 }
 

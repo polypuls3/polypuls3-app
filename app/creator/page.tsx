@@ -8,7 +8,7 @@ import Link from "next/link"
 import { usePolyPuls3 } from "@/hooks/use-polypuls3"
 import { useAccount } from "wagmi"
 import { useEffect, useState } from "react"
-import { getProjectsByCreator, getPollsByCreator, getSurveysByCreator, type Project, type Poll, type Survey } from "@/lib/graphql/queries"
+import { getProjectsByCreator, getPollsByCreator, getSurveysByCreator, type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
 
 export default function CreatorPage() {
   const { address: walletAddress } = useAccount()
@@ -17,6 +17,36 @@ export default function CreatorPage() {
   const { data: projectCount, isLoading: isLoadingProjectCount } = useProjectCount()
   const { data: pollCount, isLoading: isLoadingPollCount } = usePollCount()
   const { data: surveyCount, isLoading: isLoadingSurveyCount } = useSurveyCount()
+
+  // Helper function to get status badge variant
+  const getStatusBadgeVariant = (status: PollStatus) => {
+    switch (status) {
+      case PollStatus.ACTIVE:
+        return { variant: 'default' as const, className: 'bg-green-600 hover:bg-green-700' }
+      case PollStatus.CLAIMING_ENABLED:
+        return { variant: 'default' as const, className: 'bg-blue-600 hover:bg-blue-700' }
+      case PollStatus.ENDED:
+        return { variant: 'secondary' as const, className: 'bg-orange-600 hover:bg-orange-700' }
+      case PollStatus.CLAIMING_DISABLED:
+        return { variant: 'secondary' as const, className: 'bg-gray-600 hover:bg-gray-700' }
+      case PollStatus.CLOSED:
+        return { variant: 'secondary' as const, className: 'bg-slate-600 hover:bg-slate-700' }
+      default:
+        return { variant: 'secondary' as const, className: '' }
+    }
+  }
+
+  // Helper function to get status label
+  const getStatusLabel = (status: PollStatus) => {
+    switch (status) {
+      case PollStatus.ACTIVE: return 'Active'
+      case PollStatus.ENDED: return 'Ended'
+      case PollStatus.CLAIMING_ENABLED: return 'Claiming'
+      case PollStatus.CLAIMING_DISABLED: return 'Disabled'
+      case PollStatus.CLOSED: return 'Closed'
+      default: return 'Unknown'
+    }
+  }
 
   const [userProjects, setUserProjects] = useState<Project[]>([])
   const [userPolls, setUserPolls] = useState<Poll[]>([])
@@ -229,7 +259,7 @@ export default function CreatorPage() {
                       </span>
                     </div>
                     <Button size="sm" variant="ghost" asChild>
-                      <Link href={`/projects/${project.projectId}`}>View</Link>
+                      <Link href={`/creator/projects?projectId=${project.projectId}`}>View</Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -266,38 +296,41 @@ export default function CreatorPage() {
           </Card>
         ) : (
           <div className="grid gap-4">
-            {userPolls.slice(0, 3).map((poll) => (
-              <Card key={poll.id} className="transition-all hover:border-purple-600/50 hover:shadow-lg">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5 text-purple-600" />
-                      {poll.question}
-                    </CardTitle>
-                    <Badge variant={poll.isActive ? "default" : "secondary"}>
-                      {poll.isActive ? "Active" : "Ended"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {poll.totalResponses} responses
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {new Date(Number(poll.createdAt) * 1000).toLocaleDateString()}
-                      </span>
+            {userPolls.slice(0, 3).map((poll) => {
+              const statusBadge = getStatusBadgeVariant(poll.status)
+              return (
+                <Card key={poll.id} className="transition-all hover:border-purple-600/50 hover:shadow-lg">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-purple-600" />
+                        {poll.question}
+                      </CardTitle>
+                      <Badge variant={statusBadge.variant} className={statusBadge.className}>
+                        {getStatusLabel(poll.status)}
+                      </Badge>
                     </div>
-                    <Button size="sm" variant="ghost" asChild>
-                      <Link href={`/polls/${poll.pollId}`}>View Results</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {poll.totalResponses} responses
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {new Date(Number(poll.createdAt) * 1000).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href={`/polls/${poll.pollId}`}>View Results</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
             {userSurveys.slice(0, 3).map((survey) => (
               <Card key={survey.id} className="transition-all hover:border-pink-600/50 hover:shadow-lg">
                 <CardHeader>

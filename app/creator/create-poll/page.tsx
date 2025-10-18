@@ -9,14 +9,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, X, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi"
-import { parseEther } from "viem"
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from "wagmi"
+import { parseEther, formatEther } from "viem"
 import { CONTRACT_CONFIG } from "@/lib/contracts/config"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getProjectsByCreator, type Project } from "@/lib/graphql/queries"
+
+const POLL_CONTRACT = {
+  address: process.env.NEXT_PUBLIC_POLL_CONTRACT_ADDRESS as `0x${string}`,
+  abi: [
+    {
+      inputs: [],
+      name: 'platformFeePercentage',
+      outputs: [{ name: '', type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ],
+} as const
 
 export default function CreatePollPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { address: walletAddress } = useAccount()
   const [question, setQuestion] = useState("")
   const [options, setOptions] = useState(["", ""])
@@ -36,6 +50,31 @@ export default function CreatePollPage() {
     hash,
   })
 
+  // Read platform fee percentage
+  const { data: platformFeePercentage } = useReadContract({
+    ...POLL_CONTRACT,
+    functionName: 'platformFeePercentage',
+  })
+
+  // Calculate fee breakdown
+  const calculateFeeBreakdown = () => {
+    const amount = parseFloat(rewardPool) || 0
+    if (amount <= 0) return null
+
+    const feePercentage = platformFeePercentage ? Number(platformFeePercentage) / 100 : 10
+    const platformFee = (amount * feePercentage) / 100
+    const rewardPoolAmount = amount - platformFee
+
+    return {
+      total: amount,
+      rewardPool: rewardPoolAmount,
+      platformFee: platformFee,
+      feePercentage: feePercentage,
+    }
+  }
+
+  const feeBreakdown = calculateFeeBreakdown()
+
   // Fetch user's projects
   useEffect(() => {
     async function fetchUserProjects() {
@@ -47,6 +86,12 @@ export default function CreatePollPage() {
       try {
         const projects = await getProjectsByCreator(walletAddress)
         setUserProjects(projects)
+
+        // Pre-select project from URL param if available
+        const urlProjectId = searchParams.get('projectId')
+        if (urlProjectId && projects.some(p => p.projectId === urlProjectId)) {
+          setProjectId(urlProjectId)
+        }
       } catch (error) {
         console.error("Error fetching user projects:", error)
       } finally {
@@ -55,7 +100,7 @@ export default function CreatePollPage() {
     }
 
     fetchUserProjects()
-  }, [walletAddress])
+  }, [walletAddress, searchParams])
 
   const addOption = () => {
     if (options.length < 10) {
@@ -292,10 +337,50 @@ export default function CreatePollPage() {
                   onChange={(e) => setRewardPool(e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">
-                  Amount of POL to distribute among participants
+                  Total amount of POL to send to the contract
                 </p>
               </div>
             </div>
+
+            {/* Fee Breakdown */}
+            {feeBreakdown && (
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3">
+                  Fee Breakdown
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-800 dark:text-blue-200">Total Amount:</span>
+                    <span className="font-semibold text-blue-900 dark:text-blue-100">
+                      {feeBreakdown.total.toFixed(4)} POL
+                    </span>
+                  </div>
+                  <div className="border-t border-blue-200 dark:border-blue-800 my-2"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700 dark:text-blue-300">
+                      Reward Pool ({100 - feeBreakdown.feePercentage}%):
+                    </span>
+                    <span className="font-medium text-green-700 dark:text-green-400">
+                      {feeBreakdown.rewardPool.toFixed(4)} POL
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700 dark:text-blue-300">
+                      Platform Fee ({feeBreakdown.feePercentage}%):
+                    </span>
+                    <span className="font-medium text-orange-700 dark:text-orange-400">
+                      {feeBreakdown.platformFee.toFixed(4)} POL
+                    </span>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-200 dark:border-blue-800">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      <strong>Note:</strong> The reward pool will be distributed among voters.
+                      The platform fee will be held until the poll is closed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="voting-type">Voting Type</Label>

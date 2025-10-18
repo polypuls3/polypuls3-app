@@ -11,13 +11,16 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
 import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useToast } from "@/hooks/use-toast"
-import { getProjectById, getPollsByProject, getSurveysByProject, type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
+import { type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
+import { useDataFetcher } from "@/hooks/use-data-fetcher"
+import { DataSourceToggle } from "@/components/data-source-toggle"
 
 export default function ProjectDetailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { address: walletAddress } = useAccount()
   const { toast } = useToast()
+  const { fetchProjectById, fetchPollsByProject, fetchSurveysByProject, dataSource } = useDataFetcher()
 
   const [project, setProject] = useState<Project | null>(null)
   const [polls, setPolls] = useState<Poll[]>([])
@@ -32,7 +35,7 @@ export default function ProjectDetailPage() {
   // Get projectId from query params
   const projectId = searchParams.get('projectId')
 
-  // Fetch project and its polls/surveys
+  // Fetch project and its polls/surveys from subgraph or contract
   useEffect(() => {
     async function fetchData() {
       if (!projectId) {
@@ -42,11 +45,15 @@ export default function ProjectDetailPage() {
         return
       }
 
+      setIsLoadingProject(true)
+      setIsLoadingPolls(true)
+      setIsLoadingSurveys(true)
+
       try {
         const [projectData, pollsData, surveysData] = await Promise.all([
-          getProjectById(projectId),
-          getPollsByProject(projectId),
-          getSurveysByProject(projectId),
+          fetchProjectById(projectId),
+          fetchPollsByProject(projectId),
+          fetchSurveysByProject(projectId),
         ])
 
         setProject(projectData)
@@ -67,7 +74,7 @@ export default function ProjectDetailPage() {
     }
 
     fetchData()
-  }, [projectId, toast])
+  }, [projectId, dataSource, toast, fetchProjectById, fetchPollsByProject, fetchSurveysByProject])
 
   // Handle successful transaction
   useEffect(() => {
@@ -274,13 +281,16 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="container py-8">
-      {/* Back Button */}
-      <Button variant="ghost" className="mb-6 gap-2" asChild>
-        <Link href="/creator">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </Link>
-      </Button>
+      {/* Back Button and Data Source Toggle */}
+      <div className="mb-6 flex items-center justify-between">
+        <Button variant="ghost" className="gap-2" asChild>
+          <Link href="/creator">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </Button>
+        <DataSourceToggle />
+      </div>
 
       {/* Project Header */}
       <div className="mb-8">

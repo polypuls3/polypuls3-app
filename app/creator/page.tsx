@@ -8,11 +8,14 @@ import Link from "next/link"
 import { usePolyPuls3 } from "@/hooks/use-polypuls3"
 import { useAccount } from "wagmi"
 import { useEffect, useState } from "react"
-import { getProjectsByCreator, getPollsByCreator, getSurveysByCreator, type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
+import { type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
+import { useDataFetcher } from "@/hooks/use-data-fetcher"
+import { DataSourceToggle } from "@/components/data-source-toggle"
 
 export default function CreatorPage() {
   const { address: walletAddress } = useAccount()
   const { useProjectCount, usePollCount, useSurveyCount } = usePolyPuls3()
+  const { fetchProjectsByCreator, fetchPollsByCreator, fetchSurveysByCreator, dataSource } = useDataFetcher()
 
   const { data: projectCount, isLoading: isLoadingProjectCount } = useProjectCount()
   const { data: pollCount, isLoading: isLoadingPollCount } = usePollCount()
@@ -55,10 +58,10 @@ export default function CreatorPage() {
   const [isLoadingPolls, setIsLoadingPolls] = useState(true)
   const [isLoadingSurveys, setIsLoadingSurveys] = useState(true)
 
-  // Fetch user-specific data from subgraph
+  // Fetch user-specific data from subgraph or contract
   useEffect(() => {
     async function fetchUserData() {
-      console.log("Fetching data for wallet:", walletAddress)
+      console.log("Fetching data for wallet:", walletAddress, "from", dataSource)
       if (!walletAddress) {
         setIsLoadingProjects(false)
         setIsLoadingPolls(false)
@@ -66,14 +69,16 @@ export default function CreatorPage() {
         return
       }
 
-      try {
-        console.log("Fetching data for wallet:", walletAddress)
+      setIsLoadingProjects(true)
+      setIsLoadingPolls(true)
+      setIsLoadingSurveys(true)
 
-        // Fetch all user data in parallel
+      try {
+        // Fetch all user data in parallel using unified fetcher
         const [projects, polls, surveys] = await Promise.all([
-          getProjectsByCreator(walletAddress),
-          getPollsByCreator(walletAddress),
-          getSurveysByCreator(walletAddress),
+          fetchProjectsByCreator(walletAddress),
+          fetchPollsByCreator(walletAddress),
+          fetchSurveysByCreator(walletAddress),
         ])
 
         console.log("Projects fetched:", projects)
@@ -84,7 +89,7 @@ export default function CreatorPage() {
         setUserPolls(polls)
         setUserSurveys(surveys)
       } catch (error) {
-        console.error("Error fetching user data from subgraph:", error)
+        console.error("Error fetching user data:", error)
       } finally {
         setIsLoadingProjects(false)
         setIsLoadingPolls(false)
@@ -93,7 +98,7 @@ export default function CreatorPage() {
     }
 
     fetchUserData()
-  }, [walletAddress])
+  }, [walletAddress, dataSource, fetchProjectsByCreator, fetchPollsByCreator, fetchSurveysByCreator])
 
   const isLoading = isLoadingProjectCount || isLoadingPollCount || isLoadingSurveyCount
 
@@ -116,24 +121,29 @@ export default function CreatorPage() {
 
   return (
     <div className="container py-8">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Creator Dashboard</h1>
-          <p className="text-muted-foreground text-lg">Manage your polls, surveys, and projects</p>
+      <div className="mb-8 flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight mb-2">Creator Dashboard</h1>
+            <p className="text-muted-foreground text-lg">Manage your polls, surveys, and projects</p>
+          </div>
+          <div className="flex gap-2">
+            <Button className="gap-2" asChild>
+              <Link href="/creator/create-poll">
+                <Plus className="h-4 w-4" />
+                Create Poll
+              </Link>
+            </Button>
+            <Button variant="outline" className="gap-2 bg-transparent" asChild>
+              <Link href="/creator/create-survey">
+                <Plus className="h-4 w-4" />
+                Create Survey
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button className="gap-2" asChild>
-            <Link href="/creator/create-poll">
-              <Plus className="h-4 w-4" />
-              Create Poll
-            </Link>
-          </Button>
-          <Button variant="outline" className="gap-2 bg-transparent" asChild>
-            <Link href="/creator/create-survey">
-              <Plus className="h-4 w-4" />
-              Create Survey
-            </Link>
-          </Button>
+        <div className="flex justify-end">
+          <DataSourceToggle />
         </div>
       </div>
 

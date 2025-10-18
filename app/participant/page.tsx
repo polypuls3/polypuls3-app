@@ -9,6 +9,7 @@ import Link from "next/link"
 import { usePolls } from "@/hooks/use-polls"
 import { PollStatus } from "@/lib/graphql/queries"
 import { useMemo, useState } from "react"
+import { DataSourceToggle } from "@/components/data-source-toggle"
 
 export default function ParticipantPage() {
   const { polls, userResponses, loading, error } = usePolls()
@@ -75,9 +76,14 @@ export default function ParticipantPage() {
 
   return (
     <div className="container py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Active Polls</h1>
-        <p className="text-muted-foreground text-lg">Participate in community decisions and make your voice heard</p>
+      <div className="mb-8 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight mb-2">Active Polls</h1>
+            <p className="text-muted-foreground text-lg">Participate in community decisions and make your voice heard</p>
+          </div>
+          <DataSourceToggle />
+        </div>
       </div>
 
       {/* Search and Filter */}

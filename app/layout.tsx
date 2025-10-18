@@ -8,6 +8,7 @@ import { Header } from "@/components/header"
 import { Suspense } from "react"
 import WalletProvider from "@/components/providers/wallet"
 import { Toaster } from "@/components/ui/toaster"
+import { DataSourceProvider } from "@/contexts/data-source-context"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,13 +30,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <WalletProvider>
-          <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
-            <Suspense fallback={<div>Loading...</div>}>
-              <Header />
-              <main>{children}</main>
-            </Suspense>
-            <Toaster />
-          </ThemeProvider>
+          <DataSourceProvider>
+            <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
+              <Suspense fallback={<div>Loading...</div>}>
+                <Header />
+                <main>{children}</main>
+              </Suspense>
+              <Toaster />
+            </ThemeProvider>
+          </DataSourceProvider>
         </WalletProvider>
         <Analytics />
       </body>

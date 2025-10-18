@@ -17,12 +17,14 @@ const metadata = {
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
 
-const wagmiConfig = defaultWagmiConfig({
+export const config = defaultWagmiConfig({
     chains: supportedChains,
     projectId,
     metadata,
     ssr: true
 })
+
+const wagmiConfig = config
 
 interface WalletProviderProps {
     children: React.ReactNode

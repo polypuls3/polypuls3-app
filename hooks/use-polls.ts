@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getAllPolls, getUserPollResponses, type Poll, type PollResponse } from '@/lib/graphql/queries';
+import { type Poll, type PollResponse } from '@/lib/graphql/queries';
 import { useAccount } from 'wagmi';
+import { useDataFetcher } from '@/hooks/use-data-fetcher';
 
 export function usePolls() {
+  const { fetchAllActivePolls, fetchUserPollResponses, dataSource } = useDataFetcher();
+
   const [polls, setPolls] = useState<Poll[]>([]);
   const [userResponses, setUserResponses] = useState<PollResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,13 +18,13 @@ export function usePolls() {
         setLoading(true);
         setError(null);
 
-        // Fetch all active polls
-        const pollsData = await getAllPolls();
+        // Fetch all active polls using unified fetcher
+        const pollsData = await fetchAllActivePolls();
         setPolls(pollsData);
 
         // Fetch user's poll responses if wallet is connected
         if (address) {
-          const responsesData = await getUserPollResponses(address);
+          const responsesData = await fetchUserPollResponses(address);
           setUserResponses(responsesData);
         }
       } catch (err) {
@@ -33,7 +36,7 @@ export function usePolls() {
     }
 
     fetchData();
-  }, [address]);
+  }, [address, dataSource, fetchAllActivePolls, fetchUserPollResponses]);
 
   return {
     polls,

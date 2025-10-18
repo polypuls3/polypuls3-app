@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getAdminStats, getUniqueParticipants, getAllPollsWithDetails, type Poll } from '@/lib/graphql/queries';
+import { type Poll } from '@/lib/graphql/queries';
+import { useDataFetcher } from '@/hooks/use-data-fetcher';
 
 interface AdminStats {
   totalPolls: number;
@@ -10,6 +11,8 @@ interface AdminStats {
 }
 
 export function useAdminData() {
+  const { fetchAdminStats, fetchUniqueParticipants, fetchAllPolls, dataSource } = useDataFetcher();
+
   const [stats, setStats] = useState<AdminStats>({
     totalPolls: 0,
     activePolls: 0,
@@ -27,11 +30,11 @@ export function useAdminData() {
         setLoading(true);
         setError(null);
 
-        // Fetch all data in parallel
+        // Fetch all data in parallel using unified fetcher
         const [adminStats, uniqueUsers, pollsData] = await Promise.all([
-          getAdminStats(),
-          getUniqueParticipants(),
-          getAllPollsWithDetails(100)
+          fetchAdminStats(),
+          fetchUniqueParticipants(),
+          fetchAllPolls()
         ]);
 
         setStats({
@@ -48,7 +51,7 @@ export function useAdminData() {
     }
 
     fetchData();
-  }, []);
+  }, [dataSource, fetchAdminStats, fetchUniqueParticipants, fetchAllPolls]);
 
   return {
     stats,

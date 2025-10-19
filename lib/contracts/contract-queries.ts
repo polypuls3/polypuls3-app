@@ -596,3 +596,90 @@ export async function getUserPollResponsesFromContract(userAddress: string): Pro
     return []
   }
 }
+
+/**
+ * Fetch a single poll by ID from contract
+ */
+export async function getPollByIdFromContract(pollId: string): Promise<Poll | null> {
+  try {
+    const pollData = await readContract(config, {
+      ...CONTRACT_CONFIG,
+      functionName: 'getPoll',
+      args: [BigInt(pollId)],
+    }) as any
+
+    const status = await readContract(config, {
+      ...CONTRACT_CONFIG,
+      functionName: 'getPollStatus',
+      args: [BigInt(pollId)],
+    }) as number
+
+    const poll: Poll = {
+      id: `poll-${pollId}`,
+      pollId: pollId,
+      creator: pollData.creator,
+      question: pollData.question,
+      options: pollData.options,
+      createdAt: bigIntToString(pollData.createdAt),
+      expiresAt: bigIntToString(pollData.expiresAt),
+      category: pollData.category,
+      projectId: bigIntToString(pollData.projectId),
+      votingType: pollData.votingType,
+      visibility: pollData.visibility,
+      rewardPool: bigIntToString(pollData.rewardPool),
+      totalResponses: bigIntToString(pollData.totalResponses),
+      status: mapPollStatus(status),
+    }
+
+    return poll
+  } catch (error) {
+    console.error('Error fetching poll by ID from contract:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch poll responses from contract
+ */
+export async function getPollResponsesFromContract(pollId: string): Promise<any[]> {
+  try {
+    // First get all respondents
+    const respondents = await readContract(config, {
+      ...CONTRACT_CONFIG,
+      functionName: 'getPollRespondents',
+      args: [BigInt(pollId)],
+    }) as string[]
+
+    const responses = []
+
+    // For each respondent, get their response details
+    for (const respondent of respondents) {
+      try {
+        // Read from the pollResponses mapping
+        const responseData = await readContract(config, {
+          ...CONTRACT_CONFIG,
+          functionName: 'pollResponses',
+          args: [BigInt(pollId), respondent],
+        }) as any
+
+        // Only include if they have responded (timestamp > 0)
+        if (responseData.timestamp > 0n) {
+          responses.push({
+            id: `response-${pollId}-${respondent}`,
+            pollId: pollId,
+            respondent: respondent,
+            optionIndex: bigIntToString(responseData.optionIndex),
+            timestamp: bigIntToString(responseData.timestamp),
+          })
+        }
+      } catch (err) {
+        console.error(`Error fetching response for ${respondent}:`, err)
+      }
+    }
+
+    return responses
+  } catch (error) {
+    console.error('Error fetching poll responses from contract:', error)
+    return []
+  }
+}

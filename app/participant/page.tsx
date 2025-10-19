@@ -223,7 +223,7 @@ export default function ParticipantPage() {
                     </div>
                   </div>
                   <Button size="sm" asChild>
-                    <Link href={`/participant/poll/${poll.pollId}`}>Vote Now</Link>
+                    <Link href={`/participant/poll?id=${poll.pollId}`}>Vote Now</Link>
                   </Button>
                 </div>
               </CardContent>

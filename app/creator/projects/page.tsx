@@ -19,12 +19,14 @@ export default function ProjectDetailPage() {
   const searchParams = useSearchParams()
   const { address: walletAddress } = useAccount()
   const { toast } = useToast()
-  const { fetchProjectById, fetchPollsByProject, fetchSurveysByProject, dataSource } = useDataFetcher()
+  const { fetchProjectById, fetchPollsByProject, fetchSurveysByProject, fetchProjectsByCreator, dataSource } = useDataFetcher()
 
   const [project, setProject] = useState<Project | null>(null)
+  const [allProjects, setAllProjects] = useState<Project[]>([])
   const [polls, setPolls] = useState<Poll[]>([])
   const [surveys, setSurveys] = useState<Survey[]>([])
   const [isLoadingProject, setIsLoadingProject] = useState(true)
+  const [isLoadingAllProjects, setIsLoadingAllProjects] = useState(true)
   const [isLoadingPolls, setIsLoadingPolls] = useState(true)
   const [isLoadingSurveys, setIsLoadingSurveys] = useState(true)
 
@@ -74,6 +76,33 @@ export default function ProjectDetailPage() {
 
     fetchData()
   }, [projectId, dataSource, toast, fetchProjectById, fetchPollsByProject, fetchSurveysByProject])
+
+  // Fetch all projects if no projectId (list view)
+  useEffect(() => {
+    async function fetchAllProjects() {
+      if (projectId || !walletAddress) {
+        setIsLoadingAllProjects(false)
+        return
+      }
+
+      setIsLoadingAllProjects(true)
+      try {
+        const projects = await fetchProjectsByCreator(walletAddress)
+        setAllProjects(projects)
+      } catch (error) {
+        console.error("Error fetching projects:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load projects",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingAllProjects(false)
+      }
+    }
+
+    fetchAllProjects()
+  }, [projectId, walletAddress, dataSource, fetchProjectsByCreator, toast])
 
   // Handle successful transaction
   useEffect(() => {
@@ -210,22 +239,85 @@ export default function ProjectDetailPage() {
   const totalResponses = polls.reduce((acc, poll) => acc + Number(poll.totalResponses || 0), 0) +
     surveys.reduce((acc, survey) => acc + Number(survey.totalResponses || 0), 0)
 
-  // Show error if no projectId provided
+  // Show projects list if no projectId provided
   if (!projectId) {
     return (
       <div className="container py-8">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Project Selected</h3>
-            <p className="text-muted-foreground mb-4">
-              Please select a project to view its details
-            </p>
-            <Button asChild>
-              <Link href="/creator">Back to Dashboard</Link>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight mb-2">Your Projects</h1>
+              <p className="text-muted-foreground text-lg">Manage and organize your polls and surveys</p>
+            </div>
+            <Button className="gap-2" asChild>
+              <Link href="/creator/create-project">
+                <Plus className="h-4 w-4" />
+                Create New Project
+              </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {!walletAddress ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <Users className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+              <p className="text-muted-foreground mb-4">
+                Please connect your wallet to view your projects
+              </p>
+            </CardContent>
+          </Card>
+        ) : isLoadingAllProjects ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : allProjects.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first project to organize your polls and surveys
+              </p>
+              <Button asChild>
+                <Link href="/creator/create-project">Create Project</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {allProjects.map((proj) => (
+              <Card key={proj.id} className="transition-all hover:border-purple-600/50 hover:shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <FolderKanban className="h-5 w-5" />
+                      {proj.name}
+                    </CardTitle>
+                    {proj.tags && (
+                      <Badge variant="outline" className="text-xs">
+                        {proj.tags}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{proj.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {formatDate(proj.createdAt)}
+                    </span>
+                    <Button size="sm" asChild>
+                      <Link href={`/creator/projects?projectId=${proj.projectId}`}>View Details</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -280,12 +372,19 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="container py-8">
-      {/* Back Button and Data Source Toggle */}
+      {/* Back Button and Breadcrumb */}
       <div className="mb-6 flex items-center justify-between">
-        <Button variant="ghost" className="gap-2" asChild>
-          <Link href="/creator">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/creator/projects" className="hover:text-foreground transition-colors">
+            Projects
+          </Link>
+          <span>/</span>
+          <span className="text-foreground">{project.name}</span>
+        </div>
+        <Button variant="ghost" size="sm" className="gap-2" asChild>
+          <Link href="/creator/projects">
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back to Projects
           </Link>
         </Button>
       </div>

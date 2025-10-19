@@ -214,12 +214,20 @@ export default function CreatorPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Your Projects</h2>
-          <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
-            <Link href="/creator/create-project">
-              <Plus className="h-4 w-4" />
-              New Project
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+              <Link href="/creator/projects">
+                <FolderKanban className="h-4 w-4" />
+                View All Projects
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+              <Link href="/creator/create-project">
+                <Plus className="h-4 w-4" />
+                New Project
+              </Link>
+            </Button>
+          </div>
         </div>
         {isLoadingProjects ? (
           <div className="flex items-center justify-center py-8">

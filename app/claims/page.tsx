@@ -256,7 +256,7 @@ export default function ClaimsPage() {
                         )}
                       </Button>
                       <Button variant="outline" size="lg" asChild>
-                        <Link href={`/participant/poll/${poll.pollId}`}>View Poll</Link>
+                        <Link href={`/participant/poll?id=${poll.pollId}`}>View Poll</Link>
                       </Button>
                     </div>
                   </div>

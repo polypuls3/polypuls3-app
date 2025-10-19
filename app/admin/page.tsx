@@ -508,7 +508,7 @@ export default function AdminPage() {
                               size="sm"
                               asChild
                             >
-                              <Link href={`/participant/poll/${poll.pollId}`}>View</Link>
+                              <Link href={`/participant/poll?id=${poll.pollId}`}>View</Link>
                             </Button>
                             {statusActions.map((action, idx) => (
                               <Button

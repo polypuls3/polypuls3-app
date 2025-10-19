@@ -7,6 +7,8 @@ import {
   getPollsByProject,
   getSurveysByProject,
   getProjectById,
+  getPollById,
+  getPollWithResponses,
   getAllPolls,
   getAdminStats,
   getUniqueParticipants,
@@ -22,6 +24,8 @@ import {
   getPollsByProjectFromContract,
   getSurveysByProjectFromContract,
   getProjectByIdFromContract,
+  getPollByIdFromContract,
+  getPollResponsesFromContract,
   getAllActivePollsFromContract,
   getAllPollsFromContract,
   getAdminStatsFromContract,
@@ -152,6 +156,28 @@ export function useDataFetcher() {
         return getUserPollResponsesFromContract(userAddress)
       }
       return getUserPollResponses(userAddress)
+    }, [dataSource]),
+
+    /**
+     * Fetch a single poll by ID
+     */
+    fetchPollById: useCallback(async (pollId: string): Promise<Poll | null> => {
+      if (dataSource === 'contract') {
+        return getPollByIdFromContract(pollId)
+      }
+      return getPollById(pollId)
+    }, [dataSource]),
+
+    /**
+     * Fetch poll with responses
+     */
+    fetchPollWithResponses: useCallback(async (pollId: string): Promise<{ poll: Poll | null; responses: any[] }> => {
+      if (dataSource === 'contract') {
+        const poll = await getPollByIdFromContract(pollId)
+        const responses = await getPollResponsesFromContract(pollId)
+        return { poll, responses }
+      }
+      return getPollWithResponses(pollId)
     }, [dataSource]),
 
     /**

@@ -18,13 +18,14 @@ import { useChainGuard } from "@/hooks/use-chain-guard"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface PollDetailPageProps {
-  params: {
-    id: string
+  searchParams: {
+    id?: string
   }
 }
 
-export default function PollDetailPage({ params }: PollDetailPageProps) {
-  const { poll, optionsWithVotes, userVote, hasVoted, loading, error } = usePollDetail(params.id)
+export default function PollDetailPage({ searchParams }: PollDetailPageProps) {
+  const pollId = searchParams.id
+  const { poll, optionsWithVotes, userVote, hasVoted, loading, error } = usePollDetail(pollId || '')
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const { isConnected } = useAccount()
   const { toast } = useToast()
@@ -61,6 +62,15 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
   }
 
   const handleVote = async () => {
+    if (!pollId) {
+      toast({
+        title: "Invalid poll ID",
+        description: "No poll ID provided",
+        variant: "destructive"
+      })
+      return
+    }
+
     if (!isConnected) {
       toast({
         title: "Wallet not connected",
@@ -102,15 +112,15 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
     try {
       console.log('=== Submitting Vote ===')
       console.log('Contract Address:', CONTRACT_CONFIG.address)
-      console.log('Poll ID:', params.id)
+      console.log('Poll ID:', pollId)
       console.log('Selected Option:', selectedOption)
       console.log('Function:', 'respondToPoll')
-      console.log('Args:', [BigInt(params.id), BigInt(selectedOption)])
+      console.log('Args:', [BigInt(pollId), BigInt(selectedOption)])
 
       writeContract({
         ...CONTRACT_CONFIG,
         functionName: 'respondToPoll',
-        args: [BigInt(params.id), BigInt(selectedOption)]
+        args: [BigInt(pollId), BigInt(selectedOption)]
       }, {
         onSuccess: () => {
           console.log('Transaction submitted successfully')
@@ -180,6 +190,31 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
       })
     }
   }, [writeError, toast])
+
+  // Handle missing poll ID
+  if (!pollId) {
+    return (
+      <div className="container py-8">
+        <Button variant="ghost" className="mb-6 gap-2" asChild>
+          <Link href="/participant">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Polls
+          </Link>
+        </Button>
+        <Card className="border-destructive">
+          <CardContent className="pt-6 flex items-center gap-4">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+            <div>
+              <p className="font-semibold text-destructive">No poll ID provided</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Please select a poll from the polls list.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   if (loading) {
     return (

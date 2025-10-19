@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
-import { getPollWithResponses, type Poll, type PollResponse } from '@/lib/graphql/queries';
+import { type Poll, type PollResponse } from '@/lib/graphql/queries';
 import { useAccount } from 'wagmi';
+import { useDataFetcher } from './use-data-fetcher';
 
 export interface PollOptionWithVotes {
   index: number;
@@ -15,6 +16,7 @@ export function usePollDetail(pollId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { address } = useAccount();
+  const { fetchPollWithResponses, dataSource } = useDataFetcher();
 
   useEffect(() => {
     async function fetchData() {
@@ -24,7 +26,7 @@ export function usePollDetail(pollId: string) {
         setLoading(true);
         setError(null);
 
-        const { poll: pollData, responses: responsesData } = await getPollWithResponses(pollId);
+        const { poll: pollData, responses: responsesData } = await fetchPollWithResponses(pollId);
 
         if (!pollData) {
           throw new Error('Poll not found');
@@ -41,7 +43,7 @@ export function usePollDetail(pollId: string) {
     }
 
     fetchData();
-  }, [pollId]);
+  }, [pollId, dataSource, fetchPollWithResponses]);
 
   // Calculate vote distribution
   const optionsWithVotes = useMemo((): PollOptionWithVotes[] => {

@@ -77,12 +77,20 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
     }
 
     try {
+      console.log('=== Submitting Vote ===')
+      console.log('Contract Address:', CONTRACT_CONFIG.address)
+      console.log('Poll ID:', params.id)
+      console.log('Selected Option:', selectedOption)
+      console.log('Function:', 'respondToPoll')
+      console.log('Args:', [BigInt(params.id), BigInt(selectedOption)])
+
       writeContract({
         ...CONTRACT_CONFIG,
         functionName: 'respondToPoll',
         args: [BigInt(params.id), BigInt(selectedOption)]
       }, {
         onSuccess: () => {
+          console.log('Transaction submitted successfully')
           toast({
             title: "Transaction submitted",
             description: "Your vote is being processed...",
@@ -195,6 +203,17 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
           Back to Polls
         </Link>
       </Button>
+
+      {/* Development Info - Remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="mb-6 border-blue-600/50 bg-blue-600/10">
+          <CardContent className="pt-6">
+            <p className="text-xs font-mono text-muted-foreground">
+              <strong>Contract:</strong> {CONTRACT_CONFIG.address}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Poll Card */}

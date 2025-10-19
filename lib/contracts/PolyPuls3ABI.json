@@ -209,6 +209,19 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "_pollId",
+        "type": "uint256"
+      }
+    ],
+    "name": "closePoll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "_question",
         "type": "string"
@@ -402,6 +415,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getPlatformFeePercentage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -482,6 +508,16 @@
             "internalType": "enum PolyPuls3Poll.PollStatus",
             "name": "status",
             "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "platformFeeAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "claimedRewards",
+            "type": "uint256"
           }
         ],
         "internalType": "struct PolyPuls3Poll.Poll",
@@ -752,6 +788,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getTreasuryAddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -953,6 +1002,32 @@
       }
     ],
     "name": "updateContracts",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_newFeePercentage",
+        "type": "uint256"
+      }
+    ],
+    "name": "updatePlatformFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_newTreasuryAddress",
+        "type": "address"
+      }
+    ],
+    "name": "updateTreasuryAddress",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

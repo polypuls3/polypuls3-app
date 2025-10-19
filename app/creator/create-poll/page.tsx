@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, X, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, X, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from "wagmi"
@@ -14,6 +14,9 @@ import { parseEther, formatEther } from "viem"
 import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getProjectsByCreator, type Project } from "@/lib/graphql/queries"
+import { useChainGuard } from "@/hooks/use-chain-guard"
+import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 const POLL_CONTRACT = {
   address: process.env.NEXT_PUBLIC_POLL_CONTRACT_ADDRESS as `0x${string}`,
@@ -32,6 +35,9 @@ export default function CreatePollPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { address: walletAddress } = useAccount()
+  const { toast } = useToast()
+  const chainGuard = useChainGuard()
+
   const [question, setQuestion] = useState("")
   const [options, setOptions] = useState(["", ""])
   const [durationInDays, setDurationInDays] = useState("7")
@@ -146,6 +152,26 @@ export default function CreatePollPage() {
       return
     }
 
+    // Check if on correct chain
+    if (chainGuard.isWrongChain) {
+      toast({
+        title: "Wrong Network",
+        description: `Please switch to ${chainGuard.requiredChainName} to create a poll`,
+        variant: "destructive"
+      })
+
+      try {
+        await chainGuard.switchToRequiredChain()
+        toast({
+          title: "Network Switched",
+          description: `Successfully switched to ${chainGuard.requiredChainName}`,
+        })
+      } catch (error) {
+        console.error("Failed to switch chain:", error)
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -189,6 +215,40 @@ export default function CreatePollPage() {
         <h1 className="text-4xl font-bold tracking-tight mb-2">Create New Poll</h1>
         <p className="text-muted-foreground text-lg">Set up a new poll for your community to vote on</p>
       </div>
+
+      {/* Wrong Network Alert */}
+      {chainGuard.isWrongChain && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              You're connected to the wrong network. Please switch to {chainGuard.requiredChainName} (Chain ID: {chainGuard.requiredChainId})
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await chainGuard.switchToRequiredChain()
+                  toast({
+                    title: "Network Switched",
+                    description: `Successfully switched to ${chainGuard.requiredChainName}`,
+                  })
+                } catch (error) {
+                  toast({
+                    title: "Switch Failed",
+                    description: "Failed to switch network. Please switch manually in your wallet.",
+                    variant: "destructive"
+                  })
+                }
+              }}
+              disabled={chainGuard.isSwitching}
+            >
+              {chainGuard.isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Switch Network"}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isSuccess && (
         <Card className="mb-6 border-green-500 bg-green-50">

@@ -14,6 +14,8 @@ import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagm
 import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { useChainGuard } from "@/hooks/use-chain-guard"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface PollDetailPageProps {
   params: {
@@ -27,6 +29,7 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
   const { isConnected } = useAccount()
   const { toast } = useToast()
   const router = useRouter()
+  const chainGuard = useChainGuard()
 
   const { writeContract, data: hash, isPending: isWritePending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess, isError: isConfirmError, error: confirmError } = useWaitForTransactionReceipt({ hash })
@@ -74,6 +77,26 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
         variant: "destructive"
       })
       return
+    }
+
+    // Check if on correct chain
+    if (chainGuard.isWrongChain) {
+      toast({
+        title: "Wrong Network",
+        description: `Please switch to ${chainGuard.requiredChainName} to vote`,
+        variant: "destructive"
+      })
+
+      try {
+        await chainGuard.switchToRequiredChain()
+        toast({
+          title: "Network Switched",
+          description: `Successfully switched to ${chainGuard.requiredChainName}`,
+        })
+      } catch (error) {
+        console.error("Failed to switch chain:", error)
+        return
+      }
     }
 
     try {
@@ -213,6 +236,40 @@ export default function PollDetailPage({ params }: PollDetailPageProps) {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Wrong Network Alert */}
+      {chainGuard.isWrongChain && !hasVoted && !expired && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              You're connected to the wrong network. Please switch to {chainGuard.requiredChainName} (Chain ID: {chainGuard.requiredChainId})
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await chainGuard.switchToRequiredChain()
+                  toast({
+                    title: "Network Switched",
+                    description: `Successfully switched to ${chainGuard.requiredChainName}`,
+                  })
+                } catch (error) {
+                  toast({
+                    title: "Switch Failed",
+                    description: "Failed to switch network. Please switch manually in your wallet.",
+                    variant: "destructive"
+                  })
+                }
+              }}
+              disabled={chainGuard.isSwitching}
+            >
+              {chainGuard.isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Switch Network"}
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -4,16 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, TrendingUp, Clock, CheckCircle2, Users, Loader2 } from "lucide-react"
+import { Search, TrendingUp, Clock, CheckCircle2, Users, Loader2, ArrowUpDown } from "lucide-react"
 import Link from "next/link"
 import { usePolls } from "@/hooks/use-polls"
 import { PollStatus } from "@/lib/graphql/queries"
 import { useMemo, useState } from "react"
 
+type SortOption = 'newest' | 'oldest' | 'ending-soon' | 'most-votes'
+
 export default function ParticipantPage() {
   const { polls, userResponses, loading, error } = usePolls()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
 
   // Filter to only show polls with ACTIVE status
   const activePolls = useMemo(() => {
@@ -40,9 +43,9 @@ export default function ParticipantPage() {
     return Array.from(uniqueCategories).filter(cat => cat && cat.trim() !== '')
   }, [activePolls])
 
-  // Filter active polls based on search and category
+  // Filter and sort active polls based on search, category, and sort option
   const filteredPolls = useMemo(() => {
-    return activePolls.filter(poll => {
+    let filtered = activePolls.filter(poll => {
       const matchesSearch = searchTerm === "" ||
         poll.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
         poll.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -51,7 +54,25 @@ export default function ParticipantPage() {
 
       return matchesSearch && matchesCategory
     })
-  }, [activePolls, searchTerm, selectedCategory])
+
+    // Sort the filtered polls
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return parseInt(b.createdAt) - parseInt(a.createdAt)
+        case 'oldest':
+          return parseInt(a.createdAt) - parseInt(b.createdAt)
+        case 'ending-soon':
+          return parseInt(a.expiresAt) - parseInt(b.expiresAt)
+        case 'most-votes':
+          return parseInt(b.totalResponses || '0') - parseInt(a.totalResponses || '0')
+        default:
+          return 0
+      }
+    })
+
+    return sorted
+  }, [activePolls, searchTerm, selectedCategory, sortBy])
 
   // Calculate stats from active polls only
   const stats = useMemo(() => {
@@ -81,34 +102,74 @@ export default function ParticipantPage() {
       </div>
 
       {/* Search and Filter */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search polls..."
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant={selectedCategory === null ? "outline" : "ghost"}
-            size="sm"
-            onClick={() => setSelectedCategory(null)}
-          >
-            All
-          </Button>
-          {categories.map((category) => (
+      <div className="mb-8 flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search polls..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
             <Button
-              key={category}
-              variant={selectedCategory === category ? "outline" : "ghost"}
+              variant={selectedCategory === null ? "outline" : "ghost"}
               size="sm"
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => setSelectedCategory(null)}
             >
-              {category}
+              All
             </Button>
-          ))}
+            {categories.map((category) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sort Controls */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ArrowUpDown className="h-4 w-4" />
+            <span>Sort by:</span>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant={sortBy === 'newest' ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortBy('newest')}
+            >
+              Newest
+            </Button>
+            <Button
+              variant={sortBy === 'oldest' ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortBy('oldest')}
+            >
+              Oldest
+            </Button>
+            <Button
+              variant={sortBy === 'ending-soon' ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortBy('ending-soon')}
+            >
+              Ending Soon
+            </Button>
+            <Button
+              variant={sortBy === 'most-votes' ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortBy('most-votes')}
+            >
+              Most Votes
+            </Button>
+          </div>
         </div>
       </div>
 

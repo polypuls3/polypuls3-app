@@ -31,7 +31,16 @@ interface WalletProviderProps {
 }
 
 export default function WalletProvider({ children }: WalletProviderProps) {
-    const [queryClient] = useState(() => new QueryClient())
+    const [queryClient] = useState(() => new QueryClient({
+        defaultOptions: {
+            queries: {
+                refetchOnWindowFocus: false, // Don't refetch when window regains focus
+                refetchOnMount: false, // Don't refetch when component mounts
+                staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
+                gcTime: 10 * 60 * 1000, // Keep unused data in cache for 10 minutes
+            },
+        },
+    }))
     const modalInitialized = useRef(false)
 
     useEffect(() => {

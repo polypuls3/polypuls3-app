@@ -196,11 +196,14 @@ export default function CreatePollPage() {
   }
 
   // Handle successful transaction
-  if (isSuccess) {
-    setTimeout(() => {
-      router.push("/creator")
-    }, 2000)
-  }
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => {
+        router.push("/creator")
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [isSuccess, router])
 
   return (
     <div className="container py-8 max-w-4xl">

@@ -17,6 +17,7 @@ import { useDataSource } from '@/contexts/data-source-context';
 
 export function AIChatDialog() {
   const [isOpen, setIsOpen] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
   const { address: walletAddress } = useAccount();
   const { toast } = useToast();
   const chainGuard = useChainGuard();
@@ -56,29 +57,32 @@ export function AIChatDialog() {
 
   // Handle transaction success
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess && hash && !hasRedirected) {
+      // Mark as redirected immediately to prevent multiple executions
+      setHasRedirected(true);
+
       addStatusMessage(
-        `Poll created successfully! Transaction: ${hash?.slice(0, 10)}...${hash?.slice(-8)}`,
+        `Poll created successfully! Transaction: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
         'success'
       );
 
       toast({
         title: 'Poll Created Successfully!',
-        description: `Transaction hash: ${hash?.slice(0, 10)}...`,
+        description: `Transaction hash: ${hash.slice(0, 10)}...`,
       });
 
       // Wait for subgraph to index, then trigger refresh and navigate
       const timeoutId = setTimeout(() => {
-        triggerRefresh(); // Refresh data on creator page
-        reset();
+        reset(); // Reset wagmi state FIRST to clear isSuccess
         setIsOpen(false);
+        triggerRefresh(); // Refresh data on creator page
         router.push('/creator');
       }, 5000); // 5 seconds to allow subgraph indexing
 
       // Cleanup function to prevent timer accumulation
       return () => clearTimeout(timeoutId);
     }
-  }, [isSuccess, hash, toast, reset, router, addStatusMessage, triggerRefresh]);
+  }, [isSuccess, hash]); // Only essential dependencies
 
   // Handle transaction error
   useEffect(() => {
@@ -90,14 +94,21 @@ export function AIChatDialog() {
         variant: 'destructive',
       });
     }
-  }, [isWriteError, writeError, toast, addStatusMessage]);
+  }, [isWriteError, writeError]); // Remove non-essential dependencies
 
   // Handle confirming transaction
   useEffect(() => {
     if (isConfirming) {
       addStatusMessage('Confirming transaction on blockchain...', 'loading');
     }
-  }, [isConfirming, addStatusMessage]);
+  }, [isConfirming]); // Remove non-essential dependencies
+
+  // Reset hasRedirected flag when dialog closes or transaction is cleared
+  useEffect(() => {
+    if (!isOpen || !hash) {
+      setHasRedirected(false);
+    }
+  }, [isOpen, hash]);
 
   const handleAction = async (action: string) => {
     switch (action) {

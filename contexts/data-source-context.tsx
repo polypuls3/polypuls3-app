@@ -8,6 +8,8 @@ interface DataSourceContextType {
   dataSource: DataSource
   setDataSource: (source: DataSource) => void
   isLoading: boolean
+  refreshTrigger: number
+  triggerRefresh: () => void
 }
 
 const DataSourceContext = createContext<DataSourceContextType | undefined>(undefined)
@@ -15,6 +17,7 @@ const DataSourceContext = createContext<DataSourceContextType | undefined>(undef
 export function DataSourceProvider({ children }: { children: ReactNode }) {
   const [dataSource, setDataSourceState] = useState<DataSource>('contract')
   const [isLoading, setIsLoading] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // Load preference from localStorage on mount
   useEffect(() => {
@@ -33,8 +36,12 @@ export function DataSourceProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setIsLoading(false), 500)
   }
 
+  const triggerRefresh = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
+
   return (
-    <DataSourceContext.Provider value={{ dataSource, setDataSource, isLoading }}>
+    <DataSourceContext.Provider value={{ dataSource, setDataSource, isLoading, refreshTrigger, triggerRefresh }}>
       {children}
     </DataSourceContext.Provider>
   )

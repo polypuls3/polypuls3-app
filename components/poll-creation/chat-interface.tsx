@@ -9,9 +9,10 @@ interface ChatInterfaceProps {
   messages: AIChatMessage[];
   isLoading: boolean;
   onSendMessage: (message: string) => void;
+  onAction?: (action: string) => void;
 }
 
-export function ChatInterface({ messages, isLoading, onSendMessage }: ChatInterfaceProps) {
+export function ChatInterface({ messages, isLoading, onSendMessage, onAction }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -55,7 +56,7 @@ export function ChatInterface({ messages, isLoading, onSendMessage }: ChatInterf
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
-          <ChatMessage key={index} message={message} />
+          <ChatMessage key={index} message={message} onAction={onAction} />
         ))}
         {isLoading && (
           <div className="flex gap-3 mb-4">

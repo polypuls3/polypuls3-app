@@ -72,7 +72,8 @@ export async function getPollsByCreatorFromContract(creator: string): Promise<Po
       }
     }
 
-    return polls
+    // Sort by createdAt descending (newest first) to match subgraph behavior
+    return polls.sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
   } catch (error) {
     console.error('Error fetching polls from contract:', error)
     return []
@@ -116,7 +117,8 @@ export async function getProjectsByCreatorFromContract(creator: string): Promise
       }
     }
 
-    return projects
+    // Sort by createdAt descending (newest first) to match subgraph behavior
+    return projects.sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
   } catch (error) {
     console.error('Error fetching projects from contract:', error)
     return []
@@ -164,7 +166,8 @@ export async function getSurveysByCreatorFromContract(creator: string): Promise<
       }
     }
 
-    return surveys
+    // Sort by createdAt descending (newest first) to match subgraph behavior
+    return surveys.sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
   } catch (error) {
     console.error('Error fetching surveys from contract:', error)
     return []
@@ -223,7 +226,8 @@ export async function getPollsByProjectFromContract(projectId: string): Promise<
       }
     }
 
-    return polls
+    // Sort by createdAt descending (newest first) to match subgraph behavior
+    return polls.sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
   } catch (error) {
     console.error('Error fetching polls by project from contract:', error)
     return []
@@ -271,7 +275,8 @@ export async function getSurveysByProjectFromContract(projectId: string): Promis
       }
     }
 
-    return surveys
+    // Sort by createdAt descending (newest first) to match subgraph behavior
+    return surveys.sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
   } catch (error) {
     console.error('Error fetching surveys by project from contract:', error)
     return []

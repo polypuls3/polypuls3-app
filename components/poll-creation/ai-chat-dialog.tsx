@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Bot, X, CheckCircle2, Loader2 } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { ChatInterface } from './chat-interface';
-import { PollPreviewPanel } from './poll-preview-panel';
 import { useAIPollBuilder } from '@/hooks/use-ai-poll-builder';
 import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
 import { parseEther } from 'viem';
@@ -14,6 +13,7 @@ import { useChainGuard } from '@/hooks/use-chain-guard';
 import { useToast } from '@/hooks/use-toast';
 import { isCompletePollData } from '@/lib/ai/poll-validator';
 import { useRouter } from 'next/navigation';
+import { useDataSource } from '@/contexts/data-source-context';
 
 export function AIChatDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,14 +21,14 @@ export function AIChatDialog() {
   const { toast } = useToast();
   const chainGuard = useChainGuard();
   const router = useRouter();
+  const { triggerRefresh } = useDataSource();
 
   const {
     messages,
     pollData,
     isLoading,
-    error,
-    isComplete,
     sendMessage,
+    addStatusMessage,
     reset,
     startConversation,
   } = useAIPollBuilder();
@@ -36,7 +36,6 @@ export function AIChatDialog() {
   const {
     writeContract,
     data: hash,
-    isPending: isWritePending,
     isError: isWriteError,
     error: writeError,
   } = useWriteContract();
@@ -44,7 +43,6 @@ export function AIChatDialog() {
   const {
     isLoading: isConfirming,
     isSuccess,
-    error: receiptError,
   } = useWaitForTransactionReceipt({
     hash,
   });
@@ -59,34 +57,65 @@ export function AIChatDialog() {
   // Handle transaction success
   useEffect(() => {
     if (isSuccess) {
+      addStatusMessage(
+        `Poll created successfully! Transaction: ${hash?.slice(0, 10)}...${hash?.slice(-8)}`,
+        'success'
+      );
+
       toast({
         title: 'Poll Created Successfully!',
         description: `Transaction hash: ${hash?.slice(0, 10)}...`,
       });
 
-      // Reset and close dialog
-      setTimeout(() => {
+      // Wait for subgraph to index, then trigger refresh and navigate
+      const timeoutId = setTimeout(() => {
+        triggerRefresh(); // Refresh data on creator page
         reset();
         setIsOpen(false);
-        // Optionally redirect to creator dashboard
         router.push('/creator');
-      }, 2000);
+      }, 5000); // 5 seconds to allow subgraph indexing
+
+      // Cleanup function to prevent timer accumulation
+      return () => clearTimeout(timeoutId);
     }
-  }, [isSuccess, hash, toast, reset, router]);
+  }, [isSuccess, hash, toast, reset, router, addStatusMessage, triggerRefresh]);
 
   // Handle transaction error
   useEffect(() => {
     if (isWriteError && writeError) {
+      addStatusMessage(`Transaction failed: ${writeError.message}`, 'error');
       toast({
         title: 'Transaction Failed',
         description: writeError.message,
         variant: 'destructive',
       });
     }
-  }, [isWriteError, writeError, toast]);
+  }, [isWriteError, writeError, toast, addStatusMessage]);
+
+  // Handle confirming transaction
+  useEffect(() => {
+    if (isConfirming) {
+      addStatusMessage('Confirming transaction on blockchain...', 'loading');
+    }
+  }, [isConfirming, addStatusMessage]);
+
+  const handleAction = async (action: string) => {
+    switch (action) {
+      case 'create':
+        await handleCreatePoll();
+        break;
+      case 'reset':
+        reset();
+        startConversation();
+        break;
+      default:
+        console.log('Unknown action:', action);
+    }
+  };
 
   const handleCreatePoll = async () => {
     if (!isCompletePollData(pollData)) {
+      addStatusMessage('Poll data is incomplete. Please provide all required information.', 'error');
       toast({
         title: 'Incomplete Poll Data',
         description: 'Please complete all required fields before creating the poll.',
@@ -96,6 +125,7 @@ export function AIChatDialog() {
     }
 
     if (!walletAddress) {
+      addStatusMessage('Please connect your wallet to create a poll.', 'error');
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet to create a poll.',
@@ -106,6 +136,7 @@ export function AIChatDialog() {
 
     // Check if on correct chain
     if (chainGuard.isWrongChain) {
+      addStatusMessage(`Please switch to ${chainGuard.requiredChainName} network...`, 'loading');
       toast({
         title: 'Wrong Network',
         description: `Please switch to ${chainGuard.requiredChainName} to create a poll`,
@@ -114,15 +145,19 @@ export function AIChatDialog() {
 
       try {
         await chainGuard.switchToRequiredChain();
+        addStatusMessage(`Switched to ${chainGuard.requiredChainName} successfully!`, 'success');
         toast({
           title: 'Network Switched',
           description: `Successfully switched to ${chainGuard.requiredChainName}`,
         });
       } catch (error) {
+        addStatusMessage('Failed to switch network. Please switch manually.', 'error');
         console.error('Failed to switch chain:', error);
         return;
       }
     }
+
+    addStatusMessage('Creating poll transaction...', 'loading');
 
     try {
       writeContract({
@@ -140,14 +175,9 @@ export function AIChatDialog() {
         value: pollData.rewardPool !== '0' ? parseEther(pollData.rewardPool) : BigInt(0),
       });
     } catch (err) {
+      addStatusMessage('Failed to create transaction. Please try again.', 'error');
       console.error('Error creating poll:', err);
     }
-  };
-
-  const handleClose = () => {
-    setIsOpen(false);
-    // Optionally reset conversation on close
-    // reset();
   };
 
   return (
@@ -163,82 +193,29 @@ export function AIChatDialog() {
 
       {/* Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-6xl h-[80vh] p-0">
-          <DialogHeader className="p-6 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <DialogTitle>AI Poll Creator</DialogTitle>
-                  <DialogDescription>
-                    Describe your poll idea and I'll help you create it
-                  </DialogDescription>
-                </div>
+        <DialogContent className="max-w-3xl h-[85vh] p-0 flex flex-col">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600">
+                <Bot className="h-5 w-5 text-white" />
               </div>
-              <Button variant="ghost" size="icon" onClick={handleClose}>
-                <X className="h-4 w-4" />
-              </Button>
+              <div>
+                <DialogTitle>AI Poll Creator</DialogTitle>
+                <DialogDescription>
+                  Describe your poll idea and I'll help you create it
+                </DialogDescription>
+              </div>
             </div>
           </DialogHeader>
 
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-hidden px-6 pb-6">
-            {/* Chat Panel */}
-            <div className="border rounded-lg overflow-hidden flex flex-col h-full">
-              <ChatInterface
-                messages={messages}
-                isLoading={isLoading}
-                onSendMessage={sendMessage}
-              />
-            </div>
-
-            {/* Preview Panel */}
-            <div className="border rounded-lg overflow-hidden">
-              <PollPreviewPanel pollData={pollData} />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="border-t p-4 flex items-center justify-between bg-muted/50">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {isComplete && (
-                <>
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>Poll is ready to create!</span>
-                </>
-              )}
-              {isConfirming && (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Confirming transaction...</span>
-                </>
-              )}
-              {isSuccess && (
-                <>
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>Poll created successfully!</span>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={reset} disabled={isWritePending || isConfirming}>
-                Reset
-              </Button>
-              <Button
-                onClick={handleCreatePoll}
-                disabled={!isComplete || isWritePending || isConfirming || isSuccess}
-              >
-                {isWritePending || isConfirming ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isWritePending ? 'Creating...' : 'Confirming...'}
-                  </>
-                ) : (
-                  'Create Poll'
-                )}
-              </Button>
-            </div>
+          {/* Chat Interface */}
+          <div className="flex-1 overflow-hidden">
+            <ChatInterface
+              messages={messages}
+              isLoading={isLoading}
+              onSendMessage={sendMessage}
+              onAction={handleAction}
+            />
           </div>
         </DialogContent>
       </Dialog>

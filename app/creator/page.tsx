@@ -10,11 +10,13 @@ import { useAccount } from "wagmi"
 import { useEffect, useState } from "react"
 import { type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
 import { useDataFetcher } from "@/hooks/use-data-fetcher"
+import { useDataSource } from "@/contexts/data-source-context"
 
 export default function CreatorPage() {
   const { address: walletAddress } = useAccount()
   const { useProjectCount, usePollCount, useSurveyCount } = usePolyPuls3()
   const { fetchProjectsByCreator, fetchPollsByCreator, fetchSurveysByCreator, dataSource } = useDataFetcher()
+  const { refreshTrigger } = useDataSource()
 
   const { data: projectCount, isLoading: isLoadingProjectCount } = useProjectCount()
   const { data: pollCount, isLoading: isLoadingPollCount } = usePollCount()
@@ -60,7 +62,6 @@ export default function CreatorPage() {
   // Fetch user-specific data from subgraph or contract
   useEffect(() => {
     async function fetchUserData() {
-      console.log("Fetching data for wallet:", walletAddress, "from", dataSource)
       if (!walletAddress) {
         setIsLoadingProjects(false)
         setIsLoadingPolls(false)
@@ -80,10 +81,6 @@ export default function CreatorPage() {
           fetchSurveysByCreator(walletAddress),
         ])
 
-        console.log("Projects fetched:", projects)
-        console.log("Polls fetched:", polls)
-        console.log("Surveys fetched:", surveys)
-
         setUserProjects(projects)
         setUserPolls(polls)
         setUserSurveys(surveys)
@@ -97,7 +94,8 @@ export default function CreatorPage() {
     }
 
     fetchUserData()
-  }, [walletAddress, dataSource, fetchProjectsByCreator, fetchPollsByCreator, fetchSurveysByCreator])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletAddress, dataSource, refreshTrigger])
 
   const isLoading = isLoadingProjectCount || isLoadingPollCount || isLoadingSurveyCount
 
@@ -273,7 +271,7 @@ export default function CreatorPage() {
                       </span>
                     </div>
                     <Button size="sm" variant="ghost" asChild>
-                      <Link href={`/creator/projects?projectId=${project.projectId}`}>View</Link>
+                      <Link href={`/creator/projects/${project.projectId}`}>View</Link>
                     </Button>
                   </div>
                 </CardContent>

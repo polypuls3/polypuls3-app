@@ -8,6 +8,7 @@ export function useAIPollBuilder() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [showActions, setShowActions] = useState(false);
 
   const sendMessage = useCallback(async (userMessage: string) => {
     setIsLoading(true);
@@ -53,8 +54,33 @@ export function useAIPollBuilder() {
       setPollData(updatedPollData);
 
       // Check if complete
-      if (aiResponse.isComplete && isCompletePollData(updatedPollData)) {
-        setIsComplete(true);
+      const pollComplete = aiResponse.isComplete && isCompletePollData(updatedPollData);
+      setIsComplete(pollComplete);
+
+      // Automatically show preview and action buttons if poll is complete
+      if (pollComplete && !showActions) {
+        // Add preview message
+        const previewMessage: AIChatMessage = {
+          role: 'assistant',
+          content: 'Here\'s how your poll will look:',
+          type: 'preview',
+          metadata: {
+            pollData: updatedPollData,
+          },
+        };
+
+        // Add action buttons (without "Show Preview" since we already showed it)
+        const actionsMessage: AIChatMessage = {
+          role: 'assistant',
+          content: '',
+          type: 'actions',
+          metadata: {
+            actions: ['create', 'reset'],
+          },
+        };
+
+        setMessages((prev) => [...prev, previewMessage, actionsMessage]);
+        setShowActions(true);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -72,18 +98,50 @@ export function useAIPollBuilder() {
     }
   }, [messages, pollData]);
 
+  const showPreview = useCallback(() => {
+    const previewMessage: AIChatMessage = {
+      role: 'assistant',
+      content: 'Here\'s how your poll will look:',
+      type: 'preview',
+      metadata: {
+        pollData,
+      },
+    };
+    setMessages((prev) => [...prev, previewMessage]);
+  }, [pollData]);
+
+  const addStatusMessage = useCallback((content: string, statusType: 'loading' | 'success' | 'error') => {
+    const statusMessage: AIChatMessage = {
+      role: 'assistant',
+      content,
+      type: 'status',
+      metadata: {
+        statusType,
+      },
+    };
+    setMessages((prev) => [...prev, statusMessage]);
+  }, []);
+
   const reset = useCallback(() => {
     setMessages([]);
     setPollData(getDefaultPollData());
     setIsLoading(false);
     setError(null);
     setIsComplete(false);
+    setShowActions(false);
   }, []);
 
   const startConversation = useCallback(() => {
     const welcomeMessage: AIChatMessage = {
       role: 'assistant',
-      content: "Hi! I'm here to help you create a poll. What would you like to ask your community?",
+      content: `Hi! I'm here to help you create a poll quickly. Just tell me what you want to ask your community, and I'll generate poll options for you!
+
+**Quick Example:**
+"What should we build next for polypuls3?, 7 days, 0.1 POL"
+
+Or simply: "Should we add dark mode?"
+
+I'll automatically create relevant options and apply sensible defaults. You can always modify them before creating!`,
     };
     setMessages([welcomeMessage]);
   }, []);
@@ -95,6 +153,8 @@ export function useAIPollBuilder() {
     error,
     isComplete,
     sendMessage,
+    showPreview,
+    addStatusMessage,
     reset,
     startConversation,
   };

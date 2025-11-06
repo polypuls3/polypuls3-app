@@ -20,9 +20,17 @@ export interface CompletePollData {
   rewardPool: string;
 }
 
+export type MessageType = 'text' | 'preview' | 'actions' | 'status';
+
 export interface AIChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  type?: MessageType;
+  metadata?: {
+    pollData?: PartialPollData;
+    actions?: string[];
+    statusType?: 'loading' | 'success' | 'error';
+  };
 }
 
 export interface AIResponse {

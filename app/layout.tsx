@@ -9,6 +9,7 @@ import { Suspense } from "react"
 import WalletProvider from "@/components/providers/wallet"
 import { Toaster } from "@/components/ui/toaster"
 import { DataSourceProvider } from "@/contexts/data-source-context"
+import { AIChatDialog } from "@/components/poll-creation/ai-chat-dialog"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,6 +38,7 @@ export default function RootLayout({
                 <main>{children}</main>
               </Suspense>
               <Toaster />
+              <AIChatDialog />
             </ThemeProvider>
           </DataSourceProvider>
         </WalletProvider>

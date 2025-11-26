@@ -18,6 +18,7 @@ export function Header() {
     { href: "/", label: "Home" },
     { href: "/participant", label: "Vote" },
     { href: "/claims", label: "Claims" },
+    { href: "/swap", label: "Swap" },
     { href: "/creator", label: "Create" },
     { href: "/creator/projects", label: "Projects" },
     { href: "/admin", label: "Admin" },

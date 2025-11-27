@@ -18,6 +18,11 @@ export function useSwapRates() {
     functionName: "usdcRate",
   });
 
+  const { data: swapFeeBps, isLoading: feeLoading, refetch: refetchFee } = useReadContract({
+    ...SWAP_CONFIG,
+    functionName: "swapFeeBps",
+  });
+
   const { data: isPaused } = useReadContract({
     ...SWAP_CONFIG,
     functionName: "paused",
@@ -25,14 +30,18 @@ export function useSwapRates() {
 
   // Format rates for display
   const usdcRateFormatted = usdcRate ? Number(usdcRate) / 1e6 : 0; // USDC per PULSE
+  const swapFeePercent = swapFeeBps ? Number(swapFeeBps) / 100 : 0; // Convert basis points to percent
 
   return {
     usdcRate: usdcRate as bigint | undefined,
     usdcRateFormatted,
+    swapFeeBps: swapFeeBps as bigint | undefined,
+    swapFeePercent,
     isPaused: isPaused as boolean | undefined,
-    isLoading: usdcRateLoading,
+    isLoading: usdcRateLoading || feeLoading,
     refetch: () => {
       refetchUsdcRate();
+      refetchFee();
     },
   };
 }
@@ -179,16 +188,19 @@ export function useSwapUsdcForPulse() {
   };
 }
 
-// Calculate output amounts
+// Calculate output amounts (includes fee deduction)
 export function useCalculateOutput() {
-  const { usdcRate } = useSwapRates();
+  const { usdcRate, swapFeeBps } = useSwapRates();
 
   const calculateUsdcFromPulse = (pulseAmount: string): string => {
     if (!pulseAmount || !usdcRate) return "0";
     try {
       const pulseWei = parseUnits(pulseAmount, 18);
-      const usdcWei = (pulseWei * usdcRate) / BigInt(1e18);
-      return formatUnits(usdcWei, 6);
+      const grossUsdcWei = (pulseWei * usdcRate) / BigInt(1e18);
+      // Apply fee
+      const fee = swapFeeBps ? (grossUsdcWei * swapFeeBps) / BigInt(10000) : BigInt(0);
+      const netUsdcWei = grossUsdcWei - fee;
+      return formatUnits(netUsdcWei, 6);
     } catch {
       return "0";
     }
@@ -198,8 +210,23 @@ export function useCalculateOutput() {
     if (!usdcAmount || !usdcRate || usdcRate === BigInt(0)) return "0";
     try {
       const usdcWei = parseUnits(usdcAmount, 6);
-      const pulseWei = (usdcWei * BigInt(1e18)) / usdcRate;
-      return formatUnits(pulseWei, 18);
+      const grossPulseWei = (usdcWei * BigInt(1e18)) / usdcRate;
+      // Apply fee
+      const fee = swapFeeBps ? (grossPulseWei * swapFeeBps) / BigInt(10000) : BigInt(0);
+      const netPulseWei = grossPulseWei - fee;
+      return formatUnits(netPulseWei, 18);
+    } catch {
+      return "0";
+    }
+  };
+
+  // Calculate fee amount for display
+  const calculateFeeAmount = (grossAmount: string, decimals: number): string => {
+    if (!grossAmount || !swapFeeBps) return "0";
+    try {
+      const amount = parseUnits(grossAmount, decimals);
+      const fee = (amount * swapFeeBps) / BigInt(10000);
+      return formatUnits(fee, decimals);
     } catch {
       return "0";
     }
@@ -208,6 +235,7 @@ export function useCalculateOutput() {
   return {
     calculateUsdcFromPulse,
     calculatePulseFromUsdc,
+    calculateFeeAmount,
   };
 }
 

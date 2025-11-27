@@ -3,7 +3,7 @@
 // Contract addresses (Polygon Amoy testnet)
 export const PULSE_SWAP_ADDRESS = (
   process.env.NEXT_PUBLIC_PULSE_SWAP_ADDRESS ||
-  "0x224FdD5342871f1d557649f33bA6dc37669B7dea"
+  "0x96F07b406C02b0225C02B002d7470b8Ab769b559"
 ) as `0x${string}`;
 
 export const PULSE_TOKEN_ADDRESS = (
@@ -22,6 +22,13 @@ export const PULSE_SWAP_ABI = [
   {
     inputs: [],
     name: "usdcRate",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "swapFeeBps",
     outputs: [{ type: "uint256" }],
     stateMutability: "view",
     type: "function",

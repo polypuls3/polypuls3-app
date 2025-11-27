@@ -32,12 +32,14 @@ export default function SwapPage() {
 
   const {
     usdcRateFormatted,
+    swapFeePercent,
     isPaused,
     isLoading: ratesLoading,
     calculateUsdcFromPulse,
     calculatePulseFromUsdc,
     pulseBalanceFormatted: liquidityPulse,
     usdcBalanceFormatted: liquidityUsdc,
+    refetch: refetchLiquidity,
   } = useSwap();
 
   const userBalances = useUserBalances(address);
@@ -112,6 +114,7 @@ export default function SwapPage() {
       setInputAmount("");
       setOutputAmount("");
       userBalances.refetch();
+      refetchLiquidity();
     }
   }, [currentSwap.isSuccess]);
 
@@ -150,9 +153,11 @@ export default function SwapPage() {
 
   // Add PULSE token to wallet
   const addPulseToWallet = async () => {
-    if (!window.ethereum) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) return;
     try {
-      await window.ethereum.request({
+      await ethereum.request({
         method: "wallet_watchAsset",
         params: {
           type: "ERC20",
@@ -220,7 +225,7 @@ export default function SwapPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Rate Display */}
-          <div className="p-4 rounded-lg bg-muted">
+          <div className="p-4 rounded-lg bg-muted space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
@@ -232,6 +237,10 @@ export default function SwapPage() {
                   1 USDC = {usdcRateFormatted > 0 ? (1 / usdcRateFormatted).toFixed(2) : "0"} PULSE
                 </p>
               </div>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+              <span className="text-sm text-muted-foreground">Swap Fee</span>
+              <span className="text-sm font-medium">{swapFeePercent}%</span>
             </div>
           </div>
 

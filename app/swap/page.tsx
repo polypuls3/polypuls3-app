@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
-import { ArrowDownUp, Loader2, AlertCircle, CheckCircle2, Wallet, Info } from "lucide-react";
+import { ArrowDownUp, Loader2, AlertCircle, CheckCircle2, Wallet, Info, Plus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,6 +148,30 @@ export default function SwapPage() {
   const inputDecimals = direction === "sell" ? 4 : 2;
   const outputDecimals = direction === "sell" ? 2 : 4;
 
+  // Add PULSE token to wallet
+  const addPulseToWallet = async () => {
+    if (!window.ethereum) return;
+    try {
+      await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address: PULSE_TOKEN_ADDRESS,
+            symbol: "PULSE",
+            decimals: 18,
+          },
+        },
+      });
+      toast({
+        title: "Token Added",
+        description: "PULSE token has been added to your wallet",
+      });
+    } catch (error) {
+      console.error("Failed to add token:", error);
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-xl">
@@ -179,9 +203,19 @@ export default function SwapPage() {
                   : "Buy PULSE with USDC"}
               </CardDescription>
             </div>
-            {isPaused && (
-              <Badge variant="destructive">Paused</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {isPaused && (
+                <Badge variant="destructive">Paused</Badge>
+              )}
+              <button
+                onClick={addPulseToWallet}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+                title="Add PULSE token to wallet"
+              >
+                <Plus className="h-3 w-3" />
+                <span className="hidden sm:inline">Add PULSE to wallet</span>
+              </button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -374,6 +408,7 @@ export default function SwapPage() {
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }

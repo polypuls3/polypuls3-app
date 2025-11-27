@@ -1,28 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Trophy,
   Target,
-  Flame,
   Star,
-  Gift,
   CheckCircle2,
   Clock,
-  Zap,
   Award,
-  TrendingUp,
+  Flame,
+  Zap,
 } from "lucide-react"
-import { useQuests, useActiveQuests, useDailyQuests, useWeeklyQuests, useAllBadges } from "@/hooks/use-quests"
+import { useQuests, useActiveQuests, useDailyQuests, useWeeklyQuests } from "@/hooks/use-quests"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { useQuestsRole } from "@/contexts/quests-role-context"
+import { getQuestTypesForRole } from "@/lib/quests/role-mapping"
 import type { QuestWithProgress } from "@/lib/quests/types"
-import Link from "next/link"
 
 function QuestCard({ quest }: { quest: QuestWithProgress }) {
   const isComplete = quest.progress.isComplete
@@ -120,7 +117,10 @@ function QuestList({ quests, isLoading }: { quests: QuestWithProgress[]; isLoadi
       <Card>
         <CardContent className="py-12 text-center">
           <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">No quests available in this category.</p>
+          <p className="text-muted-foreground">No quests available for your current role.</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Try switching roles in the sidebar to see different quests.
+          </p>
         </CardContent>
       </Card>
     )
@@ -135,105 +135,43 @@ function QuestList({ quests, isLoading }: { quests: QuestWithProgress[]; isLoadi
   )
 }
 
-function BadgeDisplay() {
-  const { badges, isLoading } = useAllBadges()
-
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'common':
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-      case 'uncommon':
-        return 'bg-green-500/10 text-green-400 border-green-500/30'
-      case 'rare':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-      case 'epic':
-        return 'bg-purple-500/10 text-purple-400 border-purple-500/30'
-      case 'legendary':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-      default:
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-        {[...Array(6)].map((_, i) => (
-          <Card key={i} className="text-center">
-            <CardContent className="pt-6">
-              <Skeleton className="h-16 w-16 rounded-full mx-auto mb-2" />
-              <Skeleton className="h-4 w-20 mx-auto" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
-
-  const earnedBadges = badges.filter((b) => b.earned)
-  const unearnedBadges = badges.filter((b) => !b.earned)
-
-  return (
-    <div className="space-y-6">
-      {earnedBadges.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-500" />
-            Earned Badges ({earnedBadges.length})
-          </h3>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-            {earnedBadges.map((badge) => (
-              <Card key={badge.id} className={`text-center border-2 ${getRarityColor(badge.rarity)}`}>
-                <CardContent className="pt-6">
-                  <div className="text-4xl mb-2">{badge.image_url || '🏆'}</div>
-                  <p className="font-medium text-sm">{badge.name}</p>
-                  <Badge variant="outline" className="mt-2 text-xs">
-                    {badge.rarity}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {unearnedBadges.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 text-muted-foreground">
-            Locked Badges ({unearnedBadges.length})
-          </h3>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-            {unearnedBadges.map((badge) => (
-              <Card key={badge.id} className="text-center opacity-50">
-                <CardContent className="pt-6">
-                  <div className="text-4xl mb-2 grayscale">🔒</div>
-                  <p className="font-medium text-sm text-muted-foreground">{badge.name}</p>
-                  <Badge variant="outline" className="mt-2 text-xs">
-                    {badge.rarity}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function QuestsPage() {
-  const { profile, points, streak, isLoading: profileLoading, error: profileError, isInitialized } = useUserProfile()
+  const { points, streak, isLoading: profileLoading, error: profileError, isInitialized, profile } = useUserProfile()
+  const { role } = useQuestsRole()
   const { quests: allQuests, isLoading: questsLoading } = useQuests()
   const { quests: activeQuests } = useActiveQuests()
   const { quests: dailyQuests, isLoading: dailyLoading } = useDailyQuests()
   const { quests: weeklyQuests, isLoading: weeklyLoading } = useWeeklyQuests()
 
-  const completedCount = allQuests.filter((q) => q.progress.completedCount > 0).length
+  // Filter quests by role
+  const roleQuestTypes = getQuestTypesForRole(role)
+
+  const filteredAllQuests = useMemo(() =>
+    allQuests.filter(q => roleQuestTypes.includes(q.quest_type as any)),
+    [allQuests, roleQuestTypes]
+  )
+
+  const filteredActiveQuests = useMemo(() =>
+    activeQuests.filter(q => roleQuestTypes.includes(q.quest_type as any)),
+    [activeQuests, roleQuestTypes]
+  )
+
+  const filteredDailyQuests = useMemo(() =>
+    dailyQuests.filter(q => roleQuestTypes.includes(q.quest_type as any)),
+    [dailyQuests, roleQuestTypes]
+  )
+
+  const filteredWeeklyQuests = useMemo(() =>
+    weeklyQuests.filter(q => roleQuestTypes.includes(q.quest_type as any)),
+    [weeklyQuests, roleQuestTypes]
+  )
+
+  const completedCount = filteredAllQuests.filter((q) => q.progress.completedCount > 0).length
 
   // Show loading while profile is being fetched
   if (profileLoading) {
     return (
-      <div className="container py-8">
+      <div className="p-6">
         <Card>
           <CardContent className="py-12 text-center">
             <Skeleton className="h-12 w-12 rounded-full mx-auto mb-4" />
@@ -248,7 +186,7 @@ export default function QuestsPage() {
   // Show error if profile fetch failed
   if (profileError) {
     return (
-      <div className="container py-8">
+      <div className="p-6">
         <Card className="border-destructive">
           <CardContent className="py-12 text-center">
             <Target className="h-12 w-12 mx-auto mb-4 text-destructive" />
@@ -263,7 +201,7 @@ export default function QuestsPage() {
   // Show connect wallet message if no profile after initialization
   if (!profile && isInitialized === false) {
     return (
-      <div className="container py-8">
+      <div className="p-6">
         <Card>
           <CardContent className="py-12 text-center">
             <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -278,141 +216,96 @@ export default function QuestsPage() {
   }
 
   return (
-    <div className="container py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Quests & Rewards</h1>
-        <p className="text-muted-foreground text-lg">
-          Complete quests to earn points, badges, and exclusive rewards
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
+          <Target className="h-8 w-8 text-purple-500" />
+          Quests
+        </h1>
+        <p className="text-muted-foreground">
+          Complete {role === 'creator' ? 'creator' : 'participant'} quests to earn points and rewards
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
+      {/* Quick Stats */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-6">
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/10">
-              <Star className="h-6 w-6 text-amber-500" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
+              <Star className="h-5 w-5 text-amber-500" />
             </div>
             <div>
-              {profileLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <p className="text-2xl font-bold">{points.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Total Points</p>
-                </>
-              )}
+              <p className="text-xl font-bold">{points.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Points</p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-500/10">
-              <Flame className="h-6 w-6 text-orange-500" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
+              <Flame className="h-5 w-5 text-orange-500" />
             </div>
             <div>
-              {profileLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <p className="text-2xl font-bold">{streak} days</p>
-                  <p className="text-sm text-muted-foreground">Current Streak</p>
-                </>
-              )}
+              <p className="text-xl font-bold">{streak}</p>
+              <p className="text-xs text-muted-foreground">Day Streak</p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
-              <CheckCircle2 className="h-6 w-6 text-green-500" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
             </div>
             <div>
-              {questsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <p className="text-2xl font-bold">{completedCount}</p>
-                  <p className="text-sm text-muted-foreground">Quests Completed</p>
-                </>
-              )}
+              <p className="text-xl font-bold">{completedCount}</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10">
-              <Zap className="h-6 w-6 text-purple-500" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
+              <Zap className="h-5 w-5 text-purple-500" />
             </div>
             <div>
-              {questsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <p className="text-2xl font-bold">{activeQuests.length}</p>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                </>
-              )}
+              <p className="text-xl font-bold">{filteredActiveQuests.length}</p>
+              <p className="text-xs text-muted-foreground">In Progress</p>
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-4 mb-8">
-        <Button asChild variant="outline">
-          <Link href="/quests/leaderboard">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Leaderboard
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/quests/shop">
-            <Gift className="mr-2 h-4 w-4" />
-            Rewards Shop
-          </Link>
-        </Button>
       </div>
 
       {/* Quest Tabs */}
       <Tabs defaultValue="active" className="space-y-6">
         <TabsList>
           <TabsTrigger value="active">
-            Active ({activeQuests.length})
+            Active ({filteredActiveQuests.length})
           </TabsTrigger>
           <TabsTrigger value="daily">
-            Daily ({dailyQuests.length})
+            Daily ({filteredDailyQuests.length})
           </TabsTrigger>
           <TabsTrigger value="weekly">
-            Weekly ({weeklyQuests.length})
+            Weekly ({filteredWeeklyQuests.length})
           </TabsTrigger>
           <TabsTrigger value="all">
-            All Quests ({allQuests.length})
+            All ({filteredAllQuests.length})
           </TabsTrigger>
-          <TabsTrigger value="badges">Badges</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active">
-          <QuestList quests={activeQuests} isLoading={questsLoading} />
+          <QuestList quests={filteredActiveQuests} isLoading={questsLoading} />
         </TabsContent>
 
         <TabsContent value="daily">
-          <QuestList quests={dailyQuests} isLoading={dailyLoading} />
+          <QuestList quests={filteredDailyQuests} isLoading={dailyLoading} />
         </TabsContent>
 
         <TabsContent value="weekly">
-          <QuestList quests={weeklyQuests} isLoading={weeklyLoading} />
+          <QuestList quests={filteredWeeklyQuests} isLoading={weeklyLoading} />
         </TabsContent>
 
         <TabsContent value="all">
-          <QuestList quests={allQuests} isLoading={questsLoading} />
-        </TabsContent>
-
-        <TabsContent value="badges">
-          <BadgeDisplay />
+          <QuestList quests={filteredAllQuests} isLoading={questsLoading} />
         </TabsContent>
       </Tabs>
     </div>

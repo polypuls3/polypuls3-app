@@ -10,7 +10,9 @@ import WalletProvider from "@/components/providers/wallet"
 import { Toaster } from "@/components/ui/toaster"
 import { DataSourceProvider } from "@/contexts/data-source-context"
 import { QuestsProvider } from "@/contexts/quests-context"
+import { TourProvider } from "@/contexts/tour-context"
 import { AIChatDialog } from "@/components/poll-creation/ai-chat-dialog"
+import { TourOverlay } from "@/components/tour"
 import { PromoBanner } from "@/components/promo-banner"
 
 const inter = Inter({
@@ -35,15 +37,18 @@ export default function RootLayout({
         <WalletProvider>
           <DataSourceProvider>
             <QuestsProvider>
-              <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
-              <Suspense fallback={<div>Loading...</div>}>
-                <Header />
-                <PromoBanner />
-                <main>{children}</main>
-              </Suspense>
-              <Toaster />
-              <AIChatDialog />
-              </ThemeProvider>
+              <TourProvider>
+                <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
+                <Suspense fallback={<div>Loading...</div>}>
+                  <Header />
+                  <PromoBanner />
+                  <main>{children}</main>
+                </Suspense>
+                <Toaster />
+                <AIChatDialog />
+                <TourOverlay />
+                </ThemeProvider>
+              </TourProvider>
             </QuestsProvider>
           </DataSourceProvider>
         </WalletProvider>

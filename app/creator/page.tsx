@@ -11,6 +11,8 @@ import { useEffect, useState } from "react"
 import { type Project, type Poll, type Survey, PollStatus } from "@/lib/graphql/queries"
 import { useDataFetcher } from "@/hooks/use-data-fetcher"
 import { useDataSource } from "@/contexts/data-source-context"
+import { useTour } from "@/hooks/use-tour"
+import { creatorTourConfig } from "@/lib/tours"
 
 export default function CreatorPage() {
   const { address: walletAddress } = useAccount()
@@ -58,6 +60,9 @@ export default function CreatorPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true)
   const [isLoadingPolls, setIsLoadingPolls] = useState(true)
   const [isLoadingSurveys, setIsLoadingSurveys] = useState(true)
+
+  // Initialize tour
+  useTour({ role: 'creator', config: creatorTourConfig })
 
   // Fetch user-specific data from subgraph or contract
   useEffect(() => {
@@ -125,13 +130,13 @@ export default function CreatorPage() {
             <p className="text-muted-foreground text-lg">Manage your polls, surveys, and projects</p>
           </div>
           <div className="flex gap-2">
-            <Button className="gap-2" asChild>
+            <Button className="gap-2" asChild data-tour="creator-create-poll">
               <Link href="/creator/create-poll">
                 <Plus className="h-4 w-4" />
                 Create Poll
               </Link>
             </Button>
-            <Button variant="outline" className="gap-2 bg-transparent" asChild>
+            <Button variant="outline" className="gap-2 bg-transparent" asChild data-tour="creator-create-survey">
               <Link href="/creator/create-survey">
                 <Plus className="h-4 w-4" />
                 Create Survey
@@ -142,7 +147,7 @@ export default function CreatorPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-4 mb-8" data-tour="creator-stats">
         <Card>
           <CardContent className="flex items-center gap-4 p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-600/10">
@@ -209,7 +214,7 @@ export default function CreatorPage() {
       </div>
 
       {/* Projects Section */}
-      <div className="mb-8">
+      <div className="mb-8" data-tour="creator-projects">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Your Projects</h2>
           <div className="flex gap-2">
@@ -282,7 +287,7 @@ export default function CreatorPage() {
       </div>
 
       {/* Recent Polls & Surveys */}
-      <div>
+      <div data-tour="creator-activity">
         <h2 className="text-2xl font-bold mb-4">Recent Activity</h2>
         {isLoadingPolls || isLoadingSurveys ? (
           <div className="flex items-center justify-center py-8">

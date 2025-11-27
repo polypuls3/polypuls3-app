@@ -13,12 +13,10 @@ import {
   Crown,
   Flame,
   Star,
-  ArrowLeft,
   TrendingUp,
 } from "lucide-react"
 import { useLeaderboard, useUserRank } from "@/hooks/use-leaderboard"
 import { useUserProfile } from "@/hooks/use-user-profile"
-import Link from "next/link"
 
 type LeaderboardPeriod = 'weekly' | 'monthly' | 'all_time'
 
@@ -217,16 +215,13 @@ function UserRankCard() {
 
 export default function LeaderboardPage() {
   return (
-    <div className="container py-8">
-      <div className="mb-8">
-        <Button variant="ghost" size="sm" asChild className="mb-4">
-          <Link href="/quests">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Quests
-          </Link>
-        </Button>
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Leaderboard</h1>
-        <p className="text-muted-foreground text-lg">
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
+          <Trophy className="h-8 w-8 text-purple-500" />
+          Leaderboard
+        </h1>
+        <p className="text-muted-foreground">
           See who's earning the most points in the community
         </p>
       </div>

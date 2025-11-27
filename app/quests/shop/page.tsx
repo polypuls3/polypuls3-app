@@ -16,11 +16,9 @@ import {
 import {
   Gift,
   Star,
-  ArrowLeft,
   Coins,
   ShoppingCart,
   CheckCircle2,
-  AlertCircle,
   Sparkles,
   Package,
   Loader2,
@@ -208,7 +206,7 @@ export default function ShopPage() {
 
   if (!profile && !profileLoading) {
     return (
-      <div className="container py-8">
+      <div className="p-6">
         <Card>
           <CardContent className="py-12 text-center">
             <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -227,22 +225,19 @@ export default function ShopPage() {
   const physicalItems = items.filter((i) => i.reward_type === 'physical')
 
   return (
-    <div className="container py-8">
-      <div className="mb-8">
-        <Button variant="ghost" size="sm" asChild className="mb-4">
-          <Link href="/quests">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Quests
-          </Link>
-        </Button>
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Rewards Shop</h1>
-        <p className="text-muted-foreground text-lg">
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
+          <Gift className="h-8 w-8 text-purple-500" />
+          Rewards Shop
+        </h1>
+        <p className="text-muted-foreground">
           Redeem your points for exclusive rewards
         </p>
       </div>
 
       {/* Points Balance */}
-      <Card className="mb-8">
+      <Card className="mb-6">
         <CardContent className="flex items-center justify-between p-6">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/10">

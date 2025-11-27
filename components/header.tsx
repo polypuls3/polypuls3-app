@@ -9,6 +9,7 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import ConnectButton from "@/components/common/connect-btn"
 import { DataSourceToggle } from "@/components/data-source-toggle"
+import { TourHelpButton } from "@/components/tour"
 
 export function Header() {
   const pathname = usePathname()
@@ -55,6 +56,7 @@ export function Header() {
           <div className="hidden lg:flex">
             <DataSourceToggle />
           </div>
+          <TourHelpButton />
           <ThemeToggle />
           <div className="hidden sm:inline-flex">
             <ConnectButton />

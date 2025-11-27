@@ -15,6 +15,8 @@ import { CONTRACT_CONFIG } from "@/lib/contracts/config"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { PollStatus } from "@/lib/graphql/queries"
+import { useTour } from "@/hooks/use-tour"
+import { adminTourConfig } from "@/lib/tours"
 
 const POLL_CONTRACT = {
   address: process.env.NEXT_PUBLIC_POLL_CONTRACT_ADDRESS as `0x${string}`,
@@ -65,6 +67,9 @@ export default function AdminPage() {
 
   const { writeContract, data: hash, isPending: isWritePending, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+  // Initialize tour
+  useTour({ role: 'admin', config: adminTourConfig })
 
   // Read platform settings
   const { data: platformFee } = useReadContract({
@@ -266,7 +271,7 @@ export default function AdminPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-4 mb-8" data-tour="admin-stats">
         <Card>
           <CardContent className="flex items-center gap-4 p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-600/10">
@@ -338,7 +343,7 @@ export default function AdminPage() {
       </div>
 
       {/* Platform Settings Section */}
-      <Card className="mb-8 border-purple-200 dark:border-purple-900">
+      <Card className="mb-8 border-purple-200 dark:border-purple-900" data-tour="admin-settings">
         <CardHeader className="bg-purple-50 dark:bg-purple-950/20">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -411,7 +416,7 @@ export default function AdminPage() {
       </Card>
 
       {/* Recent Polls Table */}
-      <Card>
+      <Card data-tour="admin-polls-table">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>All Polls ({filteredPolls.length})</CardTitle>
@@ -540,7 +545,7 @@ export default function AdminPage() {
 
       {/* Platform Analytics */}
       <div className="grid gap-6 md:grid-cols-2 mt-8">
-        <Card>
+        <Card data-tour="admin-summary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
@@ -575,7 +580,7 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="admin-quick-actions">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>

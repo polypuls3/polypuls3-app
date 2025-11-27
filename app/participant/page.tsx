@@ -9,6 +9,8 @@ import Link from "next/link"
 import { usePolls } from "@/hooks/use-polls"
 import { PollStatus } from "@/lib/graphql/queries"
 import { useMemo, useState } from "react"
+import { useTour } from "@/hooks/use-tour"
+import { participantTourConfig } from "@/lib/tours"
 
 type SortOption = 'newest' | 'oldest' | 'ending-soon' | 'most-votes'
 
@@ -17,6 +19,9 @@ export default function ParticipantPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('newest')
+
+  // Initialize tour
+  useTour({ role: 'participant', config: participantTourConfig })
 
   // Filter to only show polls with ACTIVE status
   const activePolls = useMemo(() => {
@@ -104,7 +109,7 @@ export default function ParticipantPage() {
       {/* Search and Filter */}
       <div className="mb-8 flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-md" data-tour="participant-search">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search polls..."
@@ -113,7 +118,7 @@ export default function ParticipantPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap" data-tour="participant-filters">
             <Button
               variant={selectedCategory === null ? "outline" : "ghost"}
               size="sm"
@@ -135,7 +140,7 @@ export default function ParticipantPage() {
         </div>
 
         {/* Sort Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="participant-sort">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ArrowUpDown className="h-4 w-4" />
             <span>Sort by:</span>
@@ -174,7 +179,7 @@ export default function ParticipantPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="grid gap-4 md:grid-cols-3 mb-8" data-tour="participant-stats">
         <Card>
           <CardContent className="flex items-center gap-4 p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-600/10">
@@ -249,10 +254,11 @@ export default function ParticipantPage() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {filteredPolls.map((poll) => (
+          {filteredPolls.map((poll, index) => (
             <Card
               key={poll.id}
               className="group transition-all hover:border-purple-600/50 hover:shadow-lg hover:shadow-purple-600/10"
+              {...(index === 0 ? { 'data-tour': 'participant-poll-card' } : {})}
             >
               <CardHeader>
                 <div className="flex items-start justify-between gap-4 mb-2">

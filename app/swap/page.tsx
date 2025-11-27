@@ -109,7 +109,7 @@ export default function SwapPage() {
     if (currentSwap.isSuccess) {
       toast({
         title: "Swap Successful!",
-        description: `Successfully swapped ${inputAmount} ${direction === "sell" ? "PULSE" : "USDC"} for ${parseFloat(outputAmount).toFixed(direction === "sell" ? 2 : 4)} ${direction === "sell" ? "USDC" : "PULSE"}`,
+        description: `Successfully swapped ${inputAmount} ${direction === "sell" ? "PULSE" : "USDC"} for ${outputAmount} ${direction === "sell" ? "USDC" : "PULSE"}`,
       });
       setInputAmount("");
       setOutputAmount("");

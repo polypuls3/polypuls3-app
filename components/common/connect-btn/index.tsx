@@ -1,9 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { Button } from '@/components/ui/button'
-import { Wallet, ChevronDown } from 'lucide-react'
+import { Wallet, ChevronDown, Copy, Check } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,9 +18,21 @@ function ConnectButtonComponent() {
     const { address, isConnected, chain } = useAccount()
     const { disconnect } = useDisconnect()
     const { open } = useWeb3Modal()
+    const [copied, setCopied] = useState(false)
 
     const formatAddress = (addr: string) => {
         return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+    }
+
+    const copyToClipboard = async () => {
+        if (!address) return
+        try {
+            await navigator.clipboard.writeText(address)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch (err) {
+            console.error('Failed to copy address:', err)
+        }
     }
 
     if (!isConnected || !address) {
@@ -36,20 +49,29 @@ function ConnectButtonComponent() {
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
                     <Wallet className="h-4 w-4" />
-                    <span className="hidden sm:inline">{formatAddress(address)}</span>
-                    <span className="sm:hidden">{formatAddress(address).slice(0, 8)}</span>
-                    {chain && (
-                        <span className="hidden md:inline text-muted-foreground">
-                            ({chain.name})
-                        </span>
-                    )}
+                    <span>{formatAddress(address)}</span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-                <div className="flex flex-col space-y-1 p-2">
+            <DropdownMenuContent align="end" className="w-64">
+                <div className="flex flex-col space-y-2 p-2">
                     <p className="text-sm font-medium">Connected Account</p>
-                    <p className="text-xs text-muted-foreground font-mono">{address}</p>
+                    <div
+                        className="flex items-center gap-2 p-2 rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
+                        onClick={copyToClipboard}
+                    >
+                        <p className="text-xs text-muted-foreground font-mono flex-1 truncate">
+                            {formatAddress(address)}
+                        </p>
+                        {copied ? (
+                            <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        ) : (
+                            <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        )}
+                    </div>
+                    {copied && (
+                        <p className="text-xs text-green-500">Copied to clipboard!</p>
+                    )}
                     {chain && (
                         <p className="text-xs text-muted-foreground">
                             Network: {chain.name}

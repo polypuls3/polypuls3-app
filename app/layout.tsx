@@ -9,6 +9,7 @@ import { Suspense } from "react"
 import WalletProvider from "@/components/providers/wallet"
 import { Toaster } from "@/components/ui/toaster"
 import { DataSourceProvider } from "@/contexts/data-source-context"
+import { QuestsProvider } from "@/contexts/quests-context"
 import { AIChatDialog } from "@/components/poll-creation/ai-chat-dialog"
 import { PromoBanner } from "@/components/promo-banner"
 
@@ -33,7 +34,8 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <WalletProvider>
           <DataSourceProvider>
-            <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
+            <QuestsProvider>
+              <ThemeProvider defaultTheme="dark" storageKey="polypuls3-theme">
               <Suspense fallback={<div>Loading...</div>}>
                 <Header />
                 <PromoBanner />
@@ -41,7 +43,8 @@ export default function RootLayout({
               </Suspense>
               <Toaster />
               <AIChatDialog />
-            </ThemeProvider>
+              </ThemeProvider>
+            </QuestsProvider>
           </DataSourceProvider>
         </WalletProvider>
         <Analytics />

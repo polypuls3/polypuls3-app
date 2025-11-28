@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -19,9 +19,15 @@ import { useQuests, useActiveQuests, useDailyQuests, useWeeklyQuests } from "@/h
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useQuestsRole } from "@/contexts/quests-role-context"
 import { getQuestTypesForRole } from "@/lib/quests/role-mapping"
+import { QuestDetailDialog } from "@/components/quests"
 import type { QuestWithProgress } from "@/lib/quests/types"
 
-function QuestCard({ quest }: { quest: QuestWithProgress }) {
+interface QuestCardProps {
+  quest: QuestWithProgress
+  onClick?: () => void
+}
+
+function QuestCard({ quest, onClick }: QuestCardProps) {
   const isComplete = quest.progress.isComplete
   const canComplete = quest.progress.canComplete
 
@@ -43,7 +49,10 @@ function QuestCard({ quest }: { quest: QuestWithProgress }) {
   }
 
   return (
-    <Card className={`transition-all ${isComplete ? 'opacity-60' : 'hover:border-purple-600/50'}`}>
+    <Card
+      className={`transition-all cursor-pointer ${isComplete ? 'opacity-60' : 'hover:border-purple-600/50 hover:shadow-md'}`}
+      onClick={onClick}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <Badge className={getCategoryColor(quest.category)} variant="secondary">
@@ -92,7 +101,13 @@ function QuestCard({ quest }: { quest: QuestWithProgress }) {
   )
 }
 
-function QuestList({ quests, isLoading }: { quests: QuestWithProgress[]; isLoading: boolean }) {
+interface QuestListProps {
+  quests: QuestWithProgress[]
+  isLoading: boolean
+  onQuestClick: (quest: QuestWithProgress) => void
+}
+
+function QuestList({ quests, isLoading, onQuestClick }: QuestListProps) {
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -129,7 +144,7 @@ function QuestList({ quests, isLoading }: { quests: QuestWithProgress[]; isLoadi
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {quests.map((quest) => (
-        <QuestCard key={quest.id} quest={quest} />
+        <QuestCard key={quest.id} quest={quest} onClick={() => onQuestClick(quest)} />
       ))}
     </div>
   )
@@ -142,6 +157,15 @@ export default function QuestsPage() {
   const { quests: activeQuests } = useActiveQuests()
   const { quests: dailyQuests, isLoading: dailyLoading } = useDailyQuests()
   const { quests: weeklyQuests, isLoading: weeklyLoading } = useWeeklyQuests()
+
+  // Quest detail dialog state
+  const [selectedQuest, setSelectedQuest] = useState<QuestWithProgress | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleQuestClick = (quest: QuestWithProgress) => {
+    setSelectedQuest(quest)
+    setDialogOpen(true)
+  }
 
   // Filter quests by role
   const roleQuestTypes = getQuestTypesForRole(role)
@@ -293,21 +317,28 @@ export default function QuestsPage() {
         </TabsList>
 
         <TabsContent value="active">
-          <QuestList quests={filteredActiveQuests} isLoading={questsLoading} />
+          <QuestList quests={filteredActiveQuests} isLoading={questsLoading} onQuestClick={handleQuestClick} />
         </TabsContent>
 
         <TabsContent value="daily">
-          <QuestList quests={filteredDailyQuests} isLoading={dailyLoading} />
+          <QuestList quests={filteredDailyQuests} isLoading={dailyLoading} onQuestClick={handleQuestClick} />
         </TabsContent>
 
         <TabsContent value="weekly">
-          <QuestList quests={filteredWeeklyQuests} isLoading={weeklyLoading} />
+          <QuestList quests={filteredWeeklyQuests} isLoading={weeklyLoading} onQuestClick={handleQuestClick} />
         </TabsContent>
 
         <TabsContent value="all">
-          <QuestList quests={filteredAllQuests} isLoading={questsLoading} />
+          <QuestList quests={filteredAllQuests} isLoading={questsLoading} onQuestClick={handleQuestClick} />
         </TabsContent>
       </Tabs>
+
+      {/* Quest Detail Dialog */}
+      <QuestDetailDialog
+        quest={selectedQuest}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   )
 }

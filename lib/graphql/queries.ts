@@ -9,6 +9,11 @@ export enum PollStatus {
   CLOSED = 'CLOSED'
 }
 
+export enum FundingToken {
+  POL = 'POL',
+  PULSE = 'PULSE'
+}
+
 // Types matching subgraph entities
 export interface Project {
   id: string;
@@ -39,6 +44,8 @@ export interface Poll {
   status: PollStatus;
   platformFeeAmount: string;
   claimedRewards: string;
+  fundingToken: FundingToken;
+  rewardTokenAddress: string | null;
 }
 
 export interface Survey {
@@ -171,6 +178,8 @@ export async function getPollsByCreator(creator: string): Promise<Poll[]> {
         status
         platformFeeAmount
         claimedRewards
+        fundingToken
+        rewardTokenAddress
       }
     }
   `;
@@ -206,6 +215,8 @@ export async function getAllPolls(first: number = 100, skip: number = 0): Promis
         status
         platformFeeAmount
         claimedRewards
+        fundingToken
+        rewardTokenAddress
       }
     }
   `;
@@ -239,6 +250,8 @@ export async function getPollsByProject(projectId: string): Promise<Poll[]> {
         status
         platformFeeAmount
         claimedRewards
+        fundingToken
+        rewardTokenAddress
       }
     }
   `;
@@ -390,6 +403,8 @@ export async function getPollById(pollId: string): Promise<Poll | null> {
         status
         platformFeeAmount
         claimedRewards
+        fundingToken
+        rewardTokenAddress
       }
     }
   `;
@@ -494,6 +509,8 @@ export async function getUserClaimablePollResponses(respondent: string): Promise
           status
           platformFeeAmount
           claimedRewards
+          fundingToken
+          rewardTokenAddress
         }
       }
     }

@@ -23,9 +23,14 @@ export default function ParticipantPage() {
   // Initialize tour
   useTour({ role: 'participant', config: participantTourConfig })
 
-  // Filter to only show polls with ACTIVE status
+  // Filter to only show polls that are ACTIVE and haven't expired
   const activePolls = useMemo(() => {
-    return polls.filter(poll => poll.status === PollStatus.ACTIVE)
+    const now = Math.floor(Date.now() / 1000)
+    return polls.filter(poll => {
+      const isStatusActive = poll.status === PollStatus.ACTIVE
+      const hasNotExpired = parseInt(poll.expiresAt) > now
+      return isStatusActive && hasNotExpired
+    })
   }, [polls])
 
   // Helper function to check if poll is ending soon (within 24 hours)

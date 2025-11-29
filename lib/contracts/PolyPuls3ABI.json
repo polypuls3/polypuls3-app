@@ -272,6 +272,60 @@
     "inputs": [
       {
         "internalType": "string",
+        "name": "_question",
+        "type": "string"
+      },
+      {
+        "internalType": "string[]",
+        "name": "_options",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_durationInDays",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_category",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_projectId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_votingType",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_visibility",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_pulseAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "createPollWithPulse",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
         "name": "_name",
         "type": "string"
       },

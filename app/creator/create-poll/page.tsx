@@ -9,14 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, X, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from "wagmi"
-import { parseEther, formatEther } from "viem"
-import { CONTRACT_CONFIG } from "@/lib/contracts/config"
+import { useAccount, useReadContract } from "wagmi"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getProjectsByCreator, type Project } from "@/lib/graphql/queries"
 import { useChainGuard } from "@/hooks/use-chain-guard"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useCreatePoll, usePollPulseApproval, useUserBalances, type FundingToken } from "@/hooks/use-create-poll"
 
 const POLL_CONTRACT = {
   address: process.env.NEXT_PUBLIC_POLL_CONTRACT_ADDRESS as `0x${string}`,
@@ -49,12 +48,16 @@ export default function CreatePollPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userProjects, setUserProjects] = useState<Project[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(true)
+  const [fundingToken, setFundingToken] = useState<FundingToken>("POL")
 
-  const { data: hash, writeContract, isPending, error } = useWriteContract()
+  // Create poll hook
+  const { createPoll, hash, isPending, isConfirming, isSuccess, error } = useCreatePoll()
 
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  })
+  // PULSE approval hook
+  const pulseApproval = usePollPulseApproval(rewardPool)
+
+  // User balances for PULSE
+  const userBalances = useUserBalances(walletAddress)
 
   // Read platform fee percentage
   const { data: platformFeePercentage } = useReadContract({
@@ -76,10 +79,14 @@ export default function CreatePollPage() {
       rewardPool: rewardPoolAmount,
       platformFee: platformFee,
       feePercentage: feePercentage,
+      tokenSymbol: fundingToken,
     }
   }
 
   const feeBreakdown = calculateFeeBreakdown()
+
+  // Check if PULSE needs approval
+  const needsPulseApproval = fundingToken === "PULSE" && pulseApproval.needsApproval && parseFloat(rewardPool) > 0
 
   // Fetch user's projects
   useEffect(() => {
@@ -175,19 +182,16 @@ export default function CreatePollPage() {
     setIsSubmitting(true)
 
     try {
-      writeContract({
-        ...CONTRACT_CONFIG,
-        functionName: "createPoll",
-        args: [
-          question,
-          filteredOptions,
-          BigInt(duration),
-          category,
-          BigInt(projectId),
-          votingType,
-          visibility
-        ],
-        value: rewardPool ? parseEther(rewardPool) : BigInt(0),
+      createPoll({
+        question,
+        options: filteredOptions,
+        durationInDays: BigInt(duration),
+        category,
+        projectId: BigInt(projectId),
+        votingType,
+        visibility,
+        rewardAmount: rewardPool || "0",
+        fundingToken,
       })
     } catch (err) {
       console.error("Error creating poll:", err)
@@ -389,20 +393,38 @@ export default function CreatePollPage() {
                 <p className="text-sm text-muted-foreground">How many days the poll will be active</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reward">Reward Pool (POL, optional)</Label>
-                <Input
-                  id="reward"
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  placeholder="0"
-                  value={rewardPool}
-                  onChange={(e) => setRewardPool(e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Total amount of POL to send to the contract
-                </p>
+                <Label htmlFor="funding-token">Funding Token</Label>
+                <Select value={fundingToken} onValueChange={(v) => setFundingToken(v as FundingToken)}>
+                  <SelectTrigger id="funding-token">
+                    <SelectValue placeholder="Select token" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="POL">POL (Native Token)</SelectItem>
+                    <SelectItem value="PULSE">PULSE Token</SelectItem>
+                  </SelectContent>
+                </Select>
+                {fundingToken === "PULSE" && (
+                  <p className="text-sm text-muted-foreground">
+                    Balance: {parseFloat(userBalances.pulseBalanceFormatted).toFixed(4)} PULSE
+                  </p>
+                )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reward">Reward Pool ({fundingToken}, optional)</Label>
+              <Input
+                id="reward"
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="0"
+                value={rewardPool}
+                onChange={(e) => setRewardPool(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">
+                Total amount of {fundingToken} to fund the poll. Voters will receive rewards in {fundingToken}.
+              </p>
             </div>
 
             {/* Fee Breakdown */}
@@ -415,7 +437,7 @@ export default function CreatePollPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-blue-800 dark:text-blue-200">Total Amount:</span>
                     <span className="font-semibold text-blue-900 dark:text-blue-100">
-                      {feeBreakdown.total.toFixed(4)} POL
+                      {feeBreakdown.total.toFixed(4)} {feeBreakdown.tokenSymbol}
                     </span>
                   </div>
                   <div className="border-t border-blue-200 dark:border-blue-800 my-2"></div>
@@ -424,7 +446,7 @@ export default function CreatePollPage() {
                       Reward Pool ({100 - feeBreakdown.feePercentage}%):
                     </span>
                     <span className="font-medium text-green-700 dark:text-green-400">
-                      {feeBreakdown.rewardPool.toFixed(4)} POL
+                      {feeBreakdown.rewardPool.toFixed(4)} {feeBreakdown.tokenSymbol}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -432,12 +454,12 @@ export default function CreatePollPage() {
                       Platform Fee ({feeBreakdown.feePercentage}%):
                     </span>
                     <span className="font-medium text-orange-700 dark:text-orange-400">
-                      {feeBreakdown.platformFee.toFixed(4)} POL
+                      {feeBreakdown.platformFee.toFixed(4)} {feeBreakdown.tokenSymbol}
                     </span>
                   </div>
                   <div className="mt-3 pt-2 border-t border-blue-200 dark:border-blue-800">
                     <p className="text-xs text-blue-700 dark:text-blue-300">
-                      <strong>Note:</strong> The reward pool will be distributed among voters.
+                      <strong>Note:</strong> The reward pool will be distributed among voters in {feeBreakdown.tokenSymbol}.
                       The platform fee will be held until the poll is closed.
                     </p>
                   </div>
@@ -476,25 +498,47 @@ export default function CreatePollPage() {
         </Card>
 
         {/* Actions */}
-        <div className="flex gap-4">
-          <Button
-            type="submit"
-            size="lg"
-            className="flex-1"
-            disabled={isPending || isConfirming || isSuccess}
-          >
-            {isPending || isConfirming ? "Creating Poll..." : isSuccess ? "Poll Created!" : "Create Poll"}
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            className="flex-1 bg-transparent"
-            onClick={() => router.push("/creator")}
-            disabled={isPending || isConfirming}
-          >
-            Cancel
-          </Button>
+        <div className="flex flex-col gap-4">
+          {/* PULSE Approval Button (shown when needed) */}
+          {needsPulseApproval && (
+            <Button
+              type="button"
+              size="lg"
+              onClick={pulseApproval.handleApprove}
+              disabled={pulseApproval.isApproving}
+              className="w-full bg-purple-600 hover:bg-purple-700"
+            >
+              {pulseApproval.isApproving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Approving PULSE...
+                </>
+              ) : (
+                "Approve PULSE"
+              )}
+            </Button>
+          )}
+
+          <div className="flex gap-4">
+            <Button
+              type="submit"
+              size="lg"
+              className="flex-1"
+              disabled={isPending || isConfirming || isSuccess || needsPulseApproval}
+            >
+              {isPending || isConfirming ? "Creating Poll..." : isSuccess ? "Poll Created!" : "Create Poll"}
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="flex-1 bg-transparent"
+              onClick={() => router.push("/creator")}
+              disabled={isPending || isConfirming}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
 
         {isConfirming && (
